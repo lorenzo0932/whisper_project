@@ -1,5 +1,4 @@
 # Whisper Project
-=====================
 
 **Descrizione**
 ---------------
