@@ -1,2 +1,5 @@
 input/*
 output_text/*
+.gitignore/*
+.gitattributes/*
+
