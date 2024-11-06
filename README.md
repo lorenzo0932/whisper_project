@@ -4,7 +4,7 @@
 **Descrizione**
 ---------------
 
-Il Progetto OpenFiles è un sistema di download e trascrizione di file audio da YouTube utilizzando yt-dlp e Whisper, con l'aggiunta di una interfaccia grafica creata con Tkinter.
+Whisper Project è un sistema di download e trascrizione di file audio da YouTube utilizzando yt-dlp e Whisper, con l'aggiunta di una interfaccia grafica creata con Tkinter.
 
 **Funzionalità**
 -----------------
