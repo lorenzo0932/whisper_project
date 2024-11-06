@@ -2,7 +2,8 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import filedialog
 import subprocess
-import classes
+from classes import ManageYT
+from classes import ManageDocker
 import os
 import threading
 import queue
@@ -91,7 +92,7 @@ class App:
         os.makedirs(output_text_dir, exist_ok=True)
 
         # Inizializza la classe di download e avvia il processo
-        audio_manager = classes.YTDLManager(link, input_dir, name, format)
+        audio_manager = ManageYT.YTDLManager(link, input_dir, name, format)
         audio_manager.run()
         self.log_output("Download completato.")
 
@@ -105,7 +106,7 @@ class App:
         # Inizializza il container Docker e copia i file
         docker_container_name = "rocm-docker"
         docker_folder = "/home/rocm-user/whisper"
-        whisper_docker = classes.Docker(docker_container_name)
+        whisper_docker = ManageDocker.Docker(docker_container_name)
 
         # Copia il file audio nel container
         whisper_docker.copy_to_container(input_dir, name, f"{docker_folder}/samples")
@@ -129,7 +130,3 @@ class App:
 
         messagebox.showinfo("Completato", "Il processo è stato completato con successo!")
 
-# Crea la finestra principale e avvia la GUI
-root = tk.Tk()
-app = App(root)
-root.mainloop()

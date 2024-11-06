@@ -1,6 +1,7 @@
 import os
 import subprocess
-import classes
+from classes import ManageDocker
+from classes import ManageYT
 
 link = input("Inserire il link da usare con yt-dlp: ")
 name = input("Inserire il nome del file che si vuole dare al file: ")
@@ -20,7 +21,7 @@ docker_container_name= f"rocm-docker"
 docker_folder= f"/home/rocm-user/whisper"
 
 #Creo un oggetto per la gestione del download di audio
-audio = classes.YTDLManager(link, input, name, format)
+audio = ManageYT.YTDLManager(link, input, name, format)
 audio.run()
 
 # Imposto il path per lo script che libera la vram
@@ -32,7 +33,7 @@ reboot.wait()
 print("Dopo il reboot della vram, è possibile ripartire l'esecuzione del programma.\n")
 
 #Creo un oggetto per la gestione dei docker
-whisper_docker = classes.Docker(docker_container_name)
+whisper_docker = ManageDocker.Docker(docker_container_name)
 
 #Copio il file audio dentro il docker
 whisper_docker.copy_to_container(input, name, f"{docker_folder}/samples")

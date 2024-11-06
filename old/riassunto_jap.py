@@ -2,7 +2,7 @@ import sys
 import os
 import time
 import subprocess
-import classes
+import old.classes as classes
 
 
 link = input("Inserire il link da usare con yt-dlp: ")
