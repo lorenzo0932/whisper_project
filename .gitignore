@@ -1,7 +1,3 @@
-# Esce dalle cartelle specifiche (in questo caso 'aux', 'input' e 'output_text')
-!aux/
-!input/
-!output_text/
 # Ignora tutti i file all'interno delle cartelle escluse
 aux/**
 input/**
