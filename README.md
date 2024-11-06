@@ -1,4 +1,4 @@
-# Whisper Project README
+# Whisper Project
 
 Questo progetto è stato creato per automatizzare il processo di download e trascrizione dei video YouTube utilizzando yt-dlp e Whisper.
 
