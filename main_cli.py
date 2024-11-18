@@ -1,7 +1,10 @@
+# Usa whisper di openai per eseguire la trascrizione
+
 import os
 import subprocess
 from classes import ManageDocker
 from classes import ManageYT
+import time
 
 link = input("Inserire il link da usare con yt-dlp: ")
 name = input("Inserire il nome del file che si vuole dare al file: ")
@@ -10,6 +13,12 @@ model = input ("Inserire la grandezza del modello da utilizzare (default: medium
 format = input ("Inserire l'id del formato che si vuole scaricare (default: 251):")
 format = format or "251"  # Imposta 251 solo se format corrisponde ad una stringa vuota
 model = model or "medium" # Imposta medium solo se model corriponde alla stringa vuota
+
+# Inizia il conteggio del tempo
+start_time = time.time()
+
+# Inserisco un commento divertente
+print("Ecco un commento divertente: 'Ciao! Come possoi aiutarti oggi?'")
 
 # Creo delle cartelle di preparazione per i file audio e testo
 input = "input"
@@ -25,7 +34,7 @@ audio = ManageYT.YTDLManager(link, input, name, format)
 audio.run()
 
 # Imposto il path per lo script che libera la vram
-reboot_ollama_docker = f"aux/OllamaServer.sh"
+reboot_ollama_docker = f"aux/FreeMemoryFromLLMs.sh"
 
 # Avvio lo script per riavviare i docker usati per ollama
 reboot = subprocess.Popen(reboot_ollama_docker, shell=True)
@@ -51,8 +60,9 @@ whisper_docker.run(model, language, task, output_format, output_dir, file_path)
 # Copio il file trascrizione dentro la cartella di destinazione
 whisper_docker.copy_from_container(f"{docker_folder}/output/{name}.{output_format}", output_text)
 
-
-
+#Finisce il conteggio del tempo
+end_time = time.time()
+print("Il processo è stato completato in {:.2f} secondi.".format(end_time - start_time))
 
 
 
