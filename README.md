@@ -4,6 +4,7 @@
 ---------------
 
 Whisper Project è un sistema di download e trascrizione di file audio da YouTube utilizzando yt-dlp e Whisper, con l'aggiunta di una interfaccia grafica creata con Tkinter.
+Il programma usa Whisper fornito da openai nella versione normale e uno script ad hoc con l'uso dei trasformers per la versione fast.
 
 **Funzionalità**
 -----------------
