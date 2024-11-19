@@ -5,3 +5,5 @@ output_text/*
 __pycache__
 __pycache__/*
 
+# Aggiunto da Cline
+output_text/
