@@ -209,8 +209,13 @@ class App:
 
         # Esegui la trascrizione
         self.log_output("Avvio trascrizione e traduzione del file audio...")
-        whisper_docker.run(model, language, task, output_format, output_dir, file_path)
-        self.log_output("Trascrizione completata.")
+        whispercheck = whisper_docker.run(model, language, task, output_format, output_dir, file_path) 
+        if whispercheck == 0:
+            self.log_output("Trascrizione completata.")
+        else:
+            self.log_output("Errore durante l'esecuzione della trascrizione.\n {whispercheck}")
+            messagebox.showinfo("C'è stato un problema durante l'esecuzione della trascrizione. Per maggiori informazioni al riguardo consultare la console di log.")
+            return
 
         # Copia il file trascritto dal container al sistema host
         whisper_docker.copy_from_container(f"{docker_folder}/output/{self.name_entry.get()}.{output_format}", output_text_dir)
