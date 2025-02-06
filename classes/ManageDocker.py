@@ -82,6 +82,9 @@ class Docker:
         result = self.container.exec_run(command)
         if result.exit_code == 0:
             print("Comando eseguito con successo.")
+            return(0)
         else:
             print(f"Errore durante l'esecuzione del comando: {result.output.decode()}")
+            return({result.output.decode()})
+            
 
