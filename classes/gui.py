@@ -35,10 +35,10 @@ class App:
         self.radio_video.grid(row=2, column=1, padx=10, sticky="e")
         
         # Campo per mostrare il path del file selezionato
-        tk.Label(root, text="Path del file selezionato:").grid(row=3, column=0, sticky="w")
+        tk.Label(root, text="Path del file selezionato o link YouTube:").grid(row=3, column=0, sticky="w")
         self.file_path_var = tk.StringVar()
         self.file_path_entry = tk.Entry(root, width=37, textvariable=self.file_path_var)
-        self.file_path_entry.insert(0, "path/to/file" or "youtube link", )
+        #self.file_path_entry.insert(0, "path/to/file or youtube link", )
         self.file_path_entry.grid(row=3, column=1, pady=5, sticky="w", padx= 10)
         
         # Bottone per navigare nel filesystem in caso di file audio o video
@@ -148,8 +148,8 @@ class App:
         file_path = self.file_path_var.get()
 
         if input_type == "youtube":
-            link = name  # Il nome del campo di input è utilizzato per il link YouTube
-            audio_manager = ManageYT.YTDLManager(link, "", name, format)
+            link = file_path  # Il nome del campo di input è utilizzato per il link YouTube
+            audio_manager = ManageYT.YTDLManager(link, "input", name, format)
             audio_manager.run()
         # else:
         #     link = ""
