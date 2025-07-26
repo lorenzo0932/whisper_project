@@ -1,8 +1,10 @@
-from classes import gui
-import tkinter as tk
+import sys
+from PyQt6.QtWidgets import QApplication
+from classes import gui_qt
 
 
 # Crea la finestra principale e avvia la GUI
-root = tk.Tk()
-app = gui.App(root)
-root.mainloop()
+app = QApplication(sys.argv)
+window = gui_qt.AppView()
+window.show()
+sys.exit(app.exec())
