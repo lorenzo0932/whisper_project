@@ -2,11 +2,16 @@
 
 <p align="center">
   <strong>A user-friendly graphical interface for OpenAI's Whisper, simplifying the transcription and translation of audio from files or YouTube links.</strong>
-</p>
-
+<!-- </p>
 <p align="center">
-  <!-- You can replace this with a real screenshot of your application -->
+  You can replace this with a real screenshot of your application 
   <img src="image/WhisperGUIImage.png" alt="Whisper GUI Screenshot" width="700">
+</p> -->
+
+
+<!-- GIF 1: Main workflow from local 'media' folder -->
+<p align="center">
+  <img src="media/workflow.gif" alt="Whisper GUI Main Workflow Demo">
 </p>
 
 ---
@@ -77,12 +82,17 @@ Before you begin, ensure you have the following dependencies installed on your s
 
 The project uses a `config.json` file to manage settings. This file is automatically created in `~/.config/WhisperGUI/` on the first run.
 
+<!-- GIF 3: Advanced settings from local 'media' folder -->
+<img src="media/settings.gif" alt="Configuration Settings" width="400" align="right">
+
 Here are the key configuration options:
 
 *   `execution_mode`: Choose between `"native"` and `"docker"`.
 *   `docker_container_name`: The name of your running Docker container (e.g., `"rocm-terminal"`).
 *   `use_insanely_fast_whisper`: Set to `true` to use the accelerated version in Docker mode.
 *   `input_dir` / `output_text_dir`: Define the default directories for input and output files.
+
+<br clear="right"/>
 
 ## ▶️ Usage
 
@@ -99,6 +109,10 @@ This is the easiest way to use the tool.
 2.  **Choose your input source**:
     *   **YouTube**: Paste the link.
     *   **Audio/Video File**: Click the browse button to select a file.
+    
+    <!-- GIF 2: Input flexibility from local 'media' folder -->
+    <img src="media/input_flexibility.gif" alt="Input Flexibility" >
+
 3.  **Provide an output file name.** If left blank, a default name will be used.
 4.  **Adjust Whisper settings**: Select the model, language, and task (transcribe or translate).
 5.  **Open the settings (gear icon)** to choose the execution mode (Native or Docker).
@@ -124,15 +138,13 @@ For automation or headless environments, two CLI scripts are available.
 
 ```
 .
+├── media/               # Contains GIFs and other media for the README
 ├── core/                # Core logic (Docker, Native, YouTube managers)
 ├── services/            # Processing service that connects the logic
 ├── ui/                  # PyQt6 UI components (main window, dialogs)
 ├── utils/               # Helper modules (config, audio tools)
 ├── gui.py               # Entry point for the GUI
-├── main_cli.py          # CLI for standard Whisper
-├── main_cli_fast.py     # CLI for fast Whisper
-├── insanely-fast-whisper.py # Custom script for accelerated transcription
-└── requirements-*.txt   # Python dependencies
+└── README.md            # This file
 ```
 
 ## 💡 Future Developments
@@ -140,4 +152,3 @@ For automation or headless environments, two CLI scripts are available.
 *   Improve error handling and logging.
 *   Implement a progress bar for Docker mode.
 *   Expand the supported output formats (e.g., TXT, VTT).
-*   Test and ensure compatibility with NVIDIA GPUs (CUDA) for native execution.
