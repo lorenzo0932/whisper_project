@@ -2,10 +2,12 @@ import subprocess
 import os
 import sys
 import re
+import threading
 
 class NativeWhisper:
     def __init__(self):
-        pass
+        self.current_process = None
+        self.process_lock = threading.Lock()
 
     def _check_command(self, command):
         # Questa funzione può essere migliorata per funzionare meglio su Windows
@@ -63,7 +65,9 @@ class NativeWhisper:
             log_callback(f"Esecuzione comando Whisper: {' '.join(command)}")
 
         try:
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, encoding='utf-8')
+            with self.process_lock:
+                self.current_process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, encoding='utf-8')
+                process = self.current_process
             
             # --- REGEX CORRETTO E FLESSIBILE ---
             # Rende il gruppo delle ore (HH:) opzionale
@@ -95,9 +99,29 @@ class NativeWhisper:
             if process.returncode == 0:
                 if progress_callback: progress_callback(100) # Assicura il completamento al 100%
                 return True, "Comando Whisper eseguito con successo."
+            elif process.returncode == -15: # SIGTERM, process was terminated
+                if progress_callback: progress_callback(0) # Reset progress bar
+                return True, "Processo Whisper interrotto dall'utente."
             else:
                 return False, f"Errore durante l'esecuzione di Whisper (Codice: {process.returncode}). Controlla il log per i dettagli."
         except FileNotFoundError:
             return False, f"Comando non trovato: '{sys.executable}'. Assicurati che Python e Whisper siano installati correttamente."
         except Exception as e:
             return False, f"Errore inatteso durante l'esecuzione di Whisper: {e}"
+        finally:
+            with self.process_lock:
+                self.current_process = None
+
+    def stop_process(self):
+        with self.process_lock:
+            process_to_stop = self.current_process
+            if process_to_stop and process_to_stop.poll() is None:
+                process_to_stop.terminate()
+                process_to_stop.wait(5) # Wait for a few seconds for the process to terminate
+                if process_to_stop.poll() is None: # If it's still running, kill it
+                    process_to_stop.kill()
+                # Only set self.current_process to None if it's the same process we just stopped
+                if self.current_process == process_to_stop:
+                    self.current_process = None
+                return True
+            return False

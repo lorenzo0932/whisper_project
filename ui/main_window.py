@@ -208,8 +208,13 @@ class MainWindow(QWidget):
         self.start_button.setEnabled(True)
         self.progress_bar.hide()
         self._update_minimum_height()
-        if success: QMessageBox.information(self, "Completato", f"Processo completato con successo.\n{message}")
-        else: QMessageBox.critical(self, "Errore", f"Si è verificato un errore durante il processo.\n{message}")
+        
+        # Only show message boxes for actual errors or successful completion, not for user-initiated stops
+        if not success and "interrotto dall'utente" not in message:
+            QMessageBox.critical(self, "Errore", f"Si è verificato un errore durante il processo.\n{message}")
+        elif success and "interrotto dall'utente" not in message:
+            QMessageBox.information(self, "Completato", f"Processo completato con successo.\n{message}")
+        # If it was interrupted by the user, no message box is shown.
 
     def _update_minimum_height(self):
         target_height = 0
@@ -230,6 +235,14 @@ class MainWindow(QWidget):
     def closeEvent(self, event):
         if self.is_process_active:
             reply = QMessageBox.question(self, 'Processo in Esecuzione', "Un processo è ancora attivo. Sei sicuro di voler chiudere?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
-            if reply == QMessageBox.StandardButton.Yes: self.processing_thread.quit(); self.processing_thread.wait(3000); event.accept()
-            else: event.ignore()
-        else: self.processing_thread.quit(); self.processing_thread.wait(); event.accept()
+            if reply == QMessageBox.StandardButton.Yes:
+                self.processing_service.stop() # Stop the processing service
+                self.processing_thread.quit()
+                self.processing_thread.wait(5000) # Give it a bit more time to clean up
+                event.accept()
+            else:
+                event.ignore()
+        else:
+            self.processing_thread.quit()
+            self.processing_thread.wait()
+            event.accept()

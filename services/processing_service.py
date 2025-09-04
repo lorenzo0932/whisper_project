@@ -20,6 +20,7 @@ class ProcessingService(QObject):
         super().__init__()
         self.config_manager = config_manager
         self._is_working = False
+        self.native_manager = NativeWhisper()
 
     def start_processing(self, params: dict):
         if self._is_working:
@@ -53,8 +54,7 @@ class ProcessingService(QObject):
                 # ... (chiamata a docker_manager)
                 success, message = True, "Simulazione Docker completata."
             else:
-                native_manager = NativeWhisper()
-                success, message = native_manager.run_whisper(
+                success, message = self.native_manager.run_whisper(
                     model=params['model'],
                     language=params['language'],
                     task=params['task'],
@@ -100,3 +100,11 @@ class ProcessingService(QObject):
     def _cleanup_and_finish(self, success: bool, message: str):
         self._is_working = False
         self.finished_signal.emit(success, message)
+
+    def stop(self):
+        if self._is_working:
+            self.log_signal.emit("Tentativo di arrestare il processo Whisper in corso...")
+            self.native_manager.stop_process()
+            # The finished_signal will be emitted by run_whisper with the correct status (-15)
+            # No need to emit a separate signal here.
+            self.log_signal.emit("Segnale di terminazione inviato al processo Whisper.")
