@@ -49,10 +49,18 @@ class ProcessingService(QObject):
             execution_mode = self.config_manager.get("execution_mode")
             if execution_mode == "docker":
                 # La logica per il progresso di Docker va implementata in modo simile.
-                self.log_signal.emit("La barra di progresso per Docker non è ancora implementata.")
                 docker_manager = DockerManager(self.config_manager.get("docker_container_name"))
-                # ... (chiamata a docker_manager)
-                success, message = True, "Simulazione Docker completata."
+                success, message = docker_manager.run_whisper(
+                    model=params['model'],
+                    language=params['language'],
+                    task=params['task'],
+                    output_format=params['output_format'],
+                    output_dir=self.config_manager.get("output_text_dir"),
+                    file_path=file_to_process,
+                    total_duration=total_duration,
+                    log_callback=self.log_signal.emit,
+                    progress_callback=self.progress_signal.emit
+                )
             else:
                 success, message = self.native_manager.run_whisper(
                     model=params['model'],
@@ -104,7 +112,12 @@ class ProcessingService(QObject):
     def stop(self):
         if self._is_working:
             self.log_signal.emit("Tentativo di arrestare il processo Whisper in corso...")
-            self.native_manager.stop_process()
+            execution_mode = self.config_manager.get("execution_mode")
+            if execution_mode == "docker":
+                docker_manager = DockerManager(self.config_manager.get("docker_container_name"))
+                docker_manager.stop_process(log_callback=self.log_signal.emit)
+            else:
+                self.native_manager.stop_process()
             # The finished_signal will be emitted by run_whisper with the correct status (-15)
             # No need to emit a separate signal here.
             self.log_signal.emit("Segnale di terminazione inviato al processo Whisper.")
