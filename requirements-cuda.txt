@@ -3,3 +3,5 @@ torchaudio
 torchvision
 openai-whisper
 yt-dlp
+pyqt6
+requests
