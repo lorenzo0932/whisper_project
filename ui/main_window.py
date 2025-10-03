@@ -12,6 +12,7 @@ from PyQt6.QtGui import QIcon
 from utils.config_manager import ConfigManager
 from services.processing_service import ProcessingService
 from ui.settings_dialog import SettingsDialog
+from core.docker_manager import DockerManager # Import DockerManager
 
 class MainWindow(QWidget):
     start_processing_signal = pyqtSignal(dict)
@@ -20,15 +21,26 @@ class MainWindow(QWidget):
         super().__init__()
         self.config_manager = ConfigManager()
         self.is_process_active = False
+        self.docker_available = False # New attribute to track Docker status
+        self.docker_status_message = "" # New attribute for Docker status message
         
         self.COMPACT_HEIGHT = 300
-        self.PROGRESS_HEIGHT = 300
+        self.PROGRESS_HEIGHT = 350
         self.LOG_HEIGHT = 580
+        #self.
         
-        self.setup_processing_thread()
         self.init_ui()
+        self.setup_processing_thread()
+        self._check_docker_status() # Check Docker status at startup
         self.connect_signals()
         self.load_settings()
+
+    def _check_docker_status(self):
+        # Instantiate DockerManager to check container status
+        docker_manager = DockerManager(self.config_manager.get("docker_container_name", "rocm-terminal"))
+        self.docker_available, self.docker_status_message = docker_manager.check_container_status()
+        if not self.docker_available:
+            self.log_output(f"ATTENZIONE: {self.docker_status_message}")
 
     def init_ui(self):
         self.setWindowTitle("Whisper GUI")
@@ -68,6 +80,13 @@ class MainWindow(QWidget):
         lang_layout = QHBoxLayout(); lang_layout.addWidget(QLabel("Lingua:"))
         self.language_combo = QComboBox(); self.language_combo.addItems(["auto", "en", "it", "es", "fr", "de", "ja", "zh", "ru"])
         lang_layout.addWidget(self.language_combo); whisper_layout.addLayout(lang_layout)
+        
+        # Nuovo selettore per il formato di output
+        output_format_layout = QHBoxLayout(); output_format_layout.addWidget(QLabel("Formato:"))
+        self.output_format_combo = QComboBox(); self.output_format_combo.addItems(["srt", "vtt", "txt", "tsv", "json", "all"])
+        self.output_format_combo.setCurrentText("srt") # Default
+        output_format_layout.addWidget(self.output_format_combo); whisper_layout.addLayout(output_format_layout)
+
         task_layout = QHBoxLayout(); task_layout.addWidget(QLabel("Task:"))
         self.task_group = QButtonGroup(self); self.radio_task_transcribe = QRadioButton("Trascrivi"); self.radio_task_translate = QRadioButton("Traduci"); self.radio_task_transcribe.setChecked(True)
         for btn in [self.radio_task_transcribe, self.radio_task_translate]: self.task_group.addButton(btn); task_layout.addWidget(btn)
@@ -172,7 +191,7 @@ class MainWindow(QWidget):
         self.start_button.clicked.connect(self.run_process); self.settings_button.clicked.connect(self.open_settings_dialog); self.browse_button.clicked.connect(self.show_file_dialog); self.input_type_group.buttonClicked.connect(self.update_browse_button_state); self.toggle_log_button.clicked.connect(self.toggle_log_visibility); self.update_browse_button_state()
 
     def load_settings(self):
-        self.model_combo.setCurrentText(self.config_manager.get("model", "medium")); self.language_combo.setCurrentText(self.config_manager.get("language", "auto")); task = self.config_manager.get("task", "transcribe");
+        self.model_combo.setCurrentText(self.config_manager.get("model", "medium")); self.language_combo.setCurrentText(self.config_manager.get("language", "auto")); self.output_format_combo.setCurrentText(self.config_manager.get("output_format", "srt")); task = self.config_manager.get("task", "transcribe");
         if task == "translate": self.radio_task_translate.setChecked(True)
         else: self.radio_task_transcribe.setChecked(True)
 
@@ -180,14 +199,30 @@ class MainWindow(QWidget):
         if self.radio_youtube.isChecked(): input_type = "youtube"
         elif self.radio_audio.isChecked(): input_type = "audio"
         else: input_type = "video"
-        params = {"input_type": input_type, "name": self.name_entry.text() or "audio", "file_path": self.file_path_entry.text(), "model": self.model_combo.currentText(), "language": self.language_combo.currentText(), "task": "translate" if self.radio_task_translate.isChecked() else "transcribe", "output_format": "srt"}
+        
+        # Salva il formato di output selezionato
+        self.config_manager.set("output_format", self.output_format_combo.currentText())
+
+        params = {
+            "input_type": input_type,
+            "name": self.name_entry.text() or "audio",
+            "file_path": self.file_path_entry.text(),
+            "model": self.model_combo.currentText(),
+            "language": self.language_combo.currentText(),
+            "task": "translate" if self.radio_task_translate.isChecked() else "transcribe",
+            "output_format": self.output_format_combo.currentText() # Usa il valore selezionato
+        }
         if not params["file_path"]: QMessageBox.warning(self, "Dati mancanti", "Per favore, inserisci un Path/Link."); return
         self.start_button.setEnabled(False); self.progress_bar.show()
         self._update_minimum_height()
         self.start_processing_signal.emit(params)
 
     def open_settings_dialog(self):
-        dialog = SettingsDialog(self.config_manager, self); dialog.exec(); self.log_output("Impostazioni di esecuzione aggiornate.")
+        dialog = SettingsDialog(self.config_manager, self, self.docker_available, self.docker_status_message)
+        dialog.exec()
+        self.log_output("Impostazioni di esecuzione aggiornate.")
+        # Ricarica le impostazioni dopo la chiusura del dialogo per riflettere eventuali cambiamenti
+        self.load_settings() 
 
     def update_browse_button_state(self): self.browse_button.setEnabled(not self.radio_youtube.isChecked())
 
