@@ -8,9 +8,11 @@ from PyQt6.QtCore import Qt
 from utils.config_manager import ConfigManager
 
 class SettingsDialog(QDialog):
-    def __init__(self, config_manager: ConfigManager, parent=None):
+    def __init__(self, config_manager: ConfigManager, parent=None, docker_available: bool = True, docker_status_message: str = ""):
         super().__init__(parent)
         self.config_manager = config_manager
+        self.docker_available = docker_available
+        self.docker_status_message = docker_status_message
 
         self.setWindowTitle("Impostazioni di Esecuzione")
         self.setMinimumWidth(400)
@@ -29,6 +31,16 @@ class SettingsDialog(QDialog):
         exec_layout.addWidget(self.radio_mode_native)
         exec_layout.addStretch()
         layout.addWidget(exec_group)
+
+        # Disable Docker option if not available
+        if not self.docker_available:
+            self.radio_mode_docker.setEnabled(False)
+            # If Docker was the selected mode but is now unavailable, switch to native
+            if self.config_manager.get("execution_mode", "docker") == "docker":
+                self.radio_mode_native.setChecked(True)
+                self.config_manager.set("execution_mode", "native")
+            # Add a tooltip to explain why it's disabled
+            self.radio_mode_docker.setToolTip(f"Docker non disponibile: {self.docker_status_message}")
         
         # Gruppo Opzioni Avanzate
         advanced_group = QGroupBox("Opzioni Avanzate (Docker)")
