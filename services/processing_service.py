@@ -1,17 +1,15 @@
 import os
+import sys
 from PyQt6.QtCore import QObject, pyqtSignal
 
-# Import corretti come da specifica
 from utils.config_manager import ConfigManager
-from core.docker_manager import DockerManager
-from core.native_manager import NativeWhisper
+from core.whispercpp_manager import WhisperCppManager
 from core.youtube_manager import Youtube_manager
-from utils.audio_utils import get_audio_duration
+from utils.audio_utils import get_audio_duration, convert_to_wav_16khz
 
 class ProcessingService(QObject):
     started_signal = pyqtSignal()
-    # NUOVO: Segnale per notificare il cambio di fase (es. da download a trascrizione)
-    stage_changed_signal = pyqtSignal(str)
+    stage_changed_signal = pyqtSignal(str) # Notifica la fase attuale (es. "Download...")
     log_signal = pyqtSignal(str)
     progress_signal = pyqtSignal(int)
     finished_signal = pyqtSignal(bool, str)
@@ -20,104 +18,203 @@ class ProcessingService(QObject):
         super().__init__()
         self.config_manager = config_manager
         self._is_working = False
-        self.native_manager = NativeWhisper()
+        self._is_cancelled = False
+        
+        # Gestione percorsi assoluti basati sulla posizione del progetto
+        # Risolve il problema del lancio tramite file .desktop
+        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        bin_path = os.path.join(base_path, "bin", "whisper-cli")
+        models_dir = os.path.join(base_path, "models")
+        
+        self.whisper_manager = WhisperCppManager(bin_path=bin_path, models_dir=models_dir)
+        
+        self._generated_files = [] # File da eliminare in caso di stop
+        self._output_prefix = None # Traccia i file .srt/.txt parziali
+        self.yt_manager = None
+
+    def _check_cancelled(self):
+        """Metodo di callback per il downloader dei modelli."""
+        return self._is_cancelled
 
     def start_processing(self, params: dict):
         if self._is_working:
-            self.log_signal.emit("Un processo è già in esecuzione.")
             return
 
         self._is_working = True
+        self._is_cancelled = False
+        self._generated_files.clear()
+        self._output_prefix = None
         self.started_signal.emit()
         
+        file_to_process = None
+        temp_wav_file = None
+
         try:
-            # 1. Gestione dell'input
+            # --- 1. GESTIONE INPUT (Download o File Locale) ---
             file_to_process = self._handle_input(params)
+            
+            if self._is_cancelled:
+                self._cleanup_and_finish(False, "Operazione annullata.")
+                return
             if not file_to_process:
-                self._cleanup_and_finish(False, "Gestione dell'input fallita.")
+                self._cleanup_and_finish(False, "Recupero del file fallito.")
                 return
 
-            self.stage_changed_signal.emit("Trascrizione in corso...")
-            
-            total_duration = get_audio_duration(file_to_process)
-            if total_duration:
-                self.log_signal.emit(f"Durata totale per la trascrizione: {total_duration:.2f} secondi.")
-            else:
-                self.log_signal.emit("ATTENZIONE: Impossibile determinare la durata. La barra di progresso per Whisper non sarà disponibile.")
+            # Se è un download da YT, tracciamolo per pulizia in caso di Stop
+            if params['input_type'] == "youtube":
+                self._generated_files.append(file_to_process)
 
-            # 2. Esecuzione di Whisper
-            execution_mode = self.config_manager.get("execution_mode")
-            if execution_mode == "docker":
-                # La logica per il progresso di Docker va implementata in modo simile.
-                docker_manager = DockerManager(self.config_manager.get("docker_container_name"))
-                success, message = docker_manager.run_whisper(
+            # --- 2. VERIFICA E DOWNLOAD DEL MODELLO ---
+            self.stage_changed_signal.emit(f"Controllo modello {params['model']}...")
+            self.progress_signal.emit(0)
+            
+            model_ready = self.whisper_manager.download_model(
+                model_name=params['model'],
+                progress_callback=self.progress_signal.emit,
+                log_callback=self.log_signal.emit,
+                is_cancelled_cb=self._check_cancelled
+            )
+            
+            if self._is_cancelled:
+                self._cleanup_and_finish(False, "Download modello annullato.")
+                return
+            if not model_ready:
+                self._cleanup_and_finish(False, "Impossibile scaricare il modello.")
+                return
+
+            # --- 3. CONVERSIONE AUDIO (Obbligatoria per whisper.cpp) ---
+            self.stage_changed_signal.emit("Conversione audio...")
+            self.log_signal.emit("Generazione file WAV 16kHz (PCM)...")
+            
+            temp_wav_file = os.path.splitext(file_to_process)[0] + "_16khz.wav"
+            self._generated_files.append(temp_wav_file)
+            
+            conversion_ok = convert_to_wav_16khz(file_to_process, temp_wav_file)
+            
+            if self._is_cancelled:
+                self._cleanup_and_finish(False, "Conversione interrotta.")
+                return
+            if not conversion_ok:
+                self._cleanup_and_finish(False, "Errore nella conversione con FFmpeg.")
+                return
+
+            # --- 4. TRASCRIZIONE ---
+            self.stage_changed_signal.emit("Trascrizione in corso...")
+            total_duration = get_audio_duration(temp_wav_file)
+            
+            output_dir = params['output_dir']
+            output_name = params['name']
+            self._output_prefix = os.path.join(output_dir, output_name)
+            
+            # Recupera scelta GPU/CPU dalle impostazioni
+            device_mode = self.config_manager.get("device_mode", "gpu")
+            
+            success, message = self.whisper_manager.run_whisper(
+                model=params['model'],
+                language=params['language'],
+                task=params['task'],
+                output_format=params['output_format'],
+                output_dir=output_dir,
+                file_path=temp_wav_file,
+                output_name=output_name,
+                total_duration=total_duration,
+                log_callback=self.log_signal.emit,
+                progress_callback=self.progress_signal.emit,
+                device_mode=device_mode
+            )
+
+            # --- FALLBACK AUTOMATICO SU CPU SE GPU FALLISCE ---
+            if not success and not self._is_cancelled and device_mode == "gpu":
+                self.log_signal.emit("\n[!] Fallimento GPU rilevato. Avvio fallback su CPU...")
+                self.stage_changed_signal.emit("Fallback: Trascrizione CPU...")
+                self.progress_signal.emit(0)
+                
+                success, message = self.whisper_manager.run_whisper(
                     model=params['model'],
                     language=params['language'],
                     task=params['task'],
                     output_format=params['output_format'],
-                    output_dir=self.config_manager.get("output_text_dir"),
-                    file_path=file_to_process,
+                    output_dir=output_dir,
+                    file_path=temp_wav_file,
+                    output_name=output_name,
                     total_duration=total_duration,
                     log_callback=self.log_signal.emit,
-                    progress_callback=self.progress_signal.emit
-                )
-            else:
-                success, message = self.native_manager.run_whisper(
-                    model=params['model'],
-                    language=params['language'],
-                    task=params['task'],
-                    output_format=params['output_format'],
-                    output_dir=self.config_manager.get("output_text_dir"),
-                    file_path=file_to_process,
-                    total_duration=total_duration,
-                    log_callback=self.log_signal.emit,
-                    progress_callback=self.progress_signal.emit
+                    progress_callback=self.progress_signal.emit,
+                    device_mode="cpu" # Forza CPU
                 )
             
-            self._cleanup_and_finish(success, message)
+            if self._is_cancelled:
+                self._cleanup_and_finish(False, "Interrotto dall'utente.")
+            else:
+                self._cleanup_and_finish(success, message)
 
         except Exception as e:
-            error_msg = f"Errore critico nel servizio di elaborazione: {e}"
-            self.log_signal.emit(error_msg)
-            self._cleanup_and_finish(False, error_msg)
+            if not self._is_cancelled:
+                msg = f"Errore critico servizio: {e}"
+                self.log_signal.emit(msg)
+                self._cleanup_and_finish(False, msg)
 
     def _handle_input(self, params: dict) -> str | None:
+        """Scarica da YT o verifica file locale."""
         input_type = params['input_type']
-        
         if input_type == "youtube":
-            self.stage_changed_signal.emit("Download in corso...")
-            yt_manager = Youtube_manager(
+            self.stage_changed_signal.emit("Download YouTube...")
+            self.yt_manager = Youtube_manager(
                 link=params['file_path'],
                 input_folder=self.config_manager.get("input_dir"),
                 name=params['name'],
                 format_id="auto"
             )
-            success, result = yt_manager.run(progress_callback=self.progress_signal.emit)
-            if success:
-                return result
-            else:
-                return None
+            success, result = self.yt_manager.run(progress_callback=self.progress_signal.emit)
+            return result if success else None
         else:
-            file_path = params['file_path']
-            if not os.path.exists(file_path):
-                self.log_signal.emit(f"File di input non trovato: {file_path}")
+            p = params['file_path']
+            if not os.path.exists(p):
+                self.log_signal.emit(f"File non trovato: {p}")
                 return None
             self.progress_signal.emit(0)
-            return file_path
+            return p
 
     def _cleanup_and_finish(self, success: bool, message: str):
+        """Gestisce la pulizia dei file generati."""
+        # Se interrotto: cancella tutto (download YT, WAV convertiti, trascrizioni incomplete)
+        if self._is_cancelled:
+            self.log_signal.emit("Pulizia file residui in corso...")
+            for f in self._generated_files:
+                if f and os.path.exists(f):
+                    try: os.remove(f)
+                    except: pass
+
+            if self._output_prefix:
+                for ext in [".srt", ".vtt", ".txt", ".tsv", ".json"]:
+                    out = self._output_prefix + ext
+                    if os.path.exists(out):
+                        try: os.remove(out)
+                        except: pass
+            
+            message = "Processo annullato. Sistema ripulito."
+            success = False
+
+        # Se completato: cancella solo il WAV a 16kHz temporaneo, lascia l'input e l'output
+        else:
+            temp_wav = next((f for f in self._generated_files if f.endswith("_16khz.wav")), None)
+            if temp_wav and os.path.exists(temp_wav):
+                try: os.remove(temp_wav)
+                except: pass
+
         self._is_working = False
         self.finished_signal.emit(success, message)
 
     def stop(self):
+        """Richiesta di interruzione immediata."""
         if self._is_working:
-            self.log_signal.emit("Tentativo di arrestare il processo Whisper in corso...")
-            execution_mode = self.config_manager.get("execution_mode")
-            if execution_mode == "docker":
-                docker_manager = DockerManager(self.config_manager.get("docker_container_name"))
-                docker_manager.stop_process(log_callback=self.log_signal.emit)
-            else:
-                self.native_manager.stop_process()
-            # The finished_signal will be emitted by run_whisper with the correct status (-15)
-            # No need to emit a separate signal here.
-            self.log_signal.emit("Segnale di terminazione inviato al processo Whisper.")
+            self._is_cancelled = True
+            self.log_signal.emit("\n[!] Richiesta STOP ricevuta.")
+            
+            # Tenta di fermare yt-dlp
+            if self.yt_manager and hasattr(self.yt_manager, 'stop'):
+                try: self.yt_manager.stop()
+                except: pass
+                
+            # Ferma il binario C++
+            self.whisper_manager.stop_process()
