@@ -1,54 +1,48 @@
-# --- whisper_gui/utils/config_manager.py ---
 import os
 import json
+from pathlib import Path
 
 class ConfigManager:
-    def __init__(self, app_name="WhisperGUI", config_file_name="config.json"):
+    def __init__(self, app_name="WhisperGUI"):
         self.config_dir = os.path.join(os.path.expanduser("~"), ".config", app_name)
-        self.config_path = os.path.join(self.config_dir, config_file_name)
+        self.cache_dir = os.path.join(os.path.expanduser("~"), ".cache", app_name)
+        self.models_dir = os.path.join(self.cache_dir, "models")
+        
+        os.makedirs(self.config_dir, exist_ok=True)
+        os.makedirs(self.models_dir, exist_ok=True)
+        
+        self.config_path = os.path.join(self.config_dir, "config.json")
         self.config = self._load_config()
 
     def _get_default_config(self):
         return {
-            "execution_mode": "docker",
+            "device_mode": "gpu",
             "model": "medium",
-            "language": "ja",
-            "task": "translate",
+            "language": "auto",
+            "task": "transcribe",
             "output_format": "srt",
-            "input_dir": "input",
-            "output_text_dir": "output_text",
-            "docker_container_name": "rocm-terminal",
-            "docker_folder": "/home/rocm-user/whisper",
-            "use_insanely_fast_whisper": False, # Aggiunto per gestire la versione "fast"
-            "batch_size": 4 # Per insanely-fast-whisper
+            "input_dir": str(Path.home() / "Downloads"),
+            "output_dir": str(Path.home() / "Documents" / "WhisperGUI")
         }
 
     def _load_config(self):
-        if not os.path.exists(self.config_dir):
-            os.makedirs(self.config_dir)
-
         if os.path.exists(self.config_path):
-            with open(self.config_path, 'r') as f:
-                try:
-                    loaded_config = json.load(f)
-                    default_config = self._get_default_config()
-                    default_config.update(loaded_config)
-                    return default_config
-                except json.JSONDecodeError:
-                    print(f"Warning: Could not decode JSON from {self.config_path}. Using default configuration.")
-                    return self._get_default_config()
-        else:
-            default_config = self._get_default_config()
-            self._save_config(default_config)
-            return default_config
-
-    def _save_config(self, config_data):
-        with open(self.config_path, 'w') as f:
-            json.dump(config_data, f, indent=4)
-
-    def get(self, key, default=None):
-        return self.config.get(key, default)
+            try:
+                with open(self.config_path, 'r') as f:
+                    data = json.load(f)
+                    defaults = self._get_default_config()
+                    defaults.update(data)
+                    return defaults
+            except: pass
+        return self._get_default_config()
 
     def set(self, key, value):
         self.config[key] = value
-        self._save_config(self.config)
+        with open(self.config_path, 'w') as f:
+            json.dump(self.config, f, indent=4)
+
+    def get(self, key, default=None):
+        return self.config.get(key, default)
+    
+    def get_default(self, key, default=None):
+        return self._get_default_config().get(key, default)
