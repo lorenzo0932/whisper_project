@@ -584,6 +584,6 @@ Non serve `torch`, `torchaudio`, `torchvision`, `openai-whisper`, `requests`.
 | 5 | Fix whispercpp_manager.py | `fix/whispercpp-manager` | [x] |
 | 6 | Fix processing_service.py | `fix/processing-service` | [x] |
 | 7 | GUI: combo box modelli categorici | `feat/gui-model-selector` | [x] |
-| 8 | CI/CD + installer | `feat/ci-cd-release` | [ ] |
-| — | Ricompilare whisper.cpp v1.9.1 | `dev` (post-fix) | [ ] |
+| 8 | CI/CD + installer | `feat/ci-cd-release` | [x] |
+| — | Ricompilare whisper.cpp v1.9.1 | `dev` | [x] |
 | — | Release v1.0.0 | tag `v1.0.0` | [ ] |
