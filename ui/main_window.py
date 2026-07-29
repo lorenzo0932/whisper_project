@@ -88,6 +88,7 @@ class MainWindow(QWidget):
         self.category_combo.setMinimumWidth(180)
         for cat in get_categories():
             self.category_combo.addItem(cat["label"], cat["id"])
+        self._set_combo_dropdown_width(self.category_combo)
         self.category_combo.currentIndexChanged.connect(self._on_category_changed)
         cat_layout.addWidget(self.category_combo)
         whisper_layout.addLayout(cat_layout)
@@ -112,6 +113,7 @@ class MainWindow(QWidget):
         self.language_combo = QComboBox()
         self.language_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.language_combo.addItems(["auto", "en", "it", "es", "fr", "de", "ja", "zh", "ru"])
+        self._set_combo_dropdown_width(self.language_combo)
         lang_layout.addWidget(self.language_combo)
         whisper_layout.addLayout(lang_layout)
         
@@ -120,6 +122,7 @@ class MainWindow(QWidget):
         self.output_format_combo = QComboBox()
         self.output_format_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.output_format_combo.addItems(["srt", "vtt", "txt", "tsv", "json", "all"])
+        self._set_combo_dropdown_width(self.output_format_combo)
         self.output_format_combo.setCurrentText("srt") 
         output_format_layout.addWidget(self.output_format_combo)
         whisper_layout.addLayout(output_format_layout)
@@ -357,6 +360,11 @@ class MainWindow(QWidget):
                 self.stop_button.setEnabled(False)
                 self.log_output("\n[!] Richiesta di interruzione... Attendere la pulizia del sistema.")
                 self.processing_service.stop()
+
+    def _set_combo_dropdown_width(self, combo):
+        fm = combo.fontMetrics()
+        max_w = max(fm.horizontalAdvance(combo.itemText(i)) for i in range(combo.count()))
+        combo.view().setMinimumWidth(max_w + 30)
 
     def _on_category_changed(self, index):
         cat = get_categories()[index]
