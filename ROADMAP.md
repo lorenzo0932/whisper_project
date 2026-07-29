@@ -576,14 +576,14 @@ Non serve `torch`, `torchaudio`, `torchvision`, `openai-whisper`, `requests`.
 
 | # | Fase | Branch | Stato |
 |---|------|--------|-------|
-| 0 | Pulizia repo | `dev` (direct) | [ ] |
-| 1 | Path OS-standard (platformdirs) | `feat/platformdirs-config` | [ ] |
-| 2 | ModelManager (categorie + GGUF) | `feat/model-manager` | [ ] |
-| 3 | YoutubeManager rename + stop() | `feat/youtube-manager-rename` | [ ] |
-| 4 | yt-dlp auto-update bloccante | `feat/ytdlp-autoupdate` | [ ] |
-| 5 | Fix whispercpp_manager.py | `fix/whispercpp-manager` | [ ] |
-| 6 | Fix processing_service.py | `fix/processing-service` | [ ] |
-| 7 | GUI: combo box modelli categorici | `feat/gui-model-selector` | [ ] |
+| 0 | Pulizia repo | `dev` (direct) | [x] |
+| 1 | Path OS-standard (platformdirs) | `feat/platformdirs-config` | [x] |
+| 2 | ModelManager (categorie + GGUF) | `feat/model-manager` | [x] |
+| 3 | YoutubeManager rename + stop() | `feat/youtube-manager-rename` | [x] |
+| 4 | yt-dlp auto-update bloccante | `feat/ytdlp-autoupdate` | [x] |
+| 5 | Fix whispercpp_manager.py | `fix/whispercpp-manager` | [x] |
+| 6 | Fix processing_service.py | `fix/processing-service` | [x] |
+| 7 | GUI: combo box modelli categorici | `feat/gui-model-selector` | [x] |
 | 8 | CI/CD + installer | `feat/ci-cd-release` | [ ] |
 | — | Ricompilare whisper.cpp v1.9.1 | `dev` (post-fix) | [ ] |
 | — | Release v1.0.0 | tag `v1.0.0` | [ ] |
