@@ -12,8 +12,8 @@ CATEGORIES = [
         "label": "🥔 Potato",
         "description": "PC vecchi, Raspberry Pi, risorse minime",
         "models": [
-            {"id": "tiny-q5_1",     "label": "Tiny (39M params, ~75 MB)",  "quant": "q5_1"},
-            {"id": "base-q5_1",     "label": "Base (74M params, ~150 MB)", "quant": "q5_1"},
+            {"id": "tiny-q5_1",     "label": "Tiny (q5_1, 75 MB)",  "quant": "q5_1"},
+            {"id": "base-q5_1",     "label": "Base (q5_1, 150 MB)", "quant": "q5_1"},
         ]
     },
     {
@@ -21,8 +21,8 @@ CATEGORIES = [
         "label": "💻 Laptop",
         "description": "Bilanciato qualità/velocità per portatili",
         "models": [
-            {"id": "small-q5_1",    "label": "Small (244M params, ~460 MB)", "quant": "q5_1"},
-            {"id": "medium-q5_0",   "label": "Medium (769M params, ~1.5 GB)", "quant": "q5_0"},
+            {"id": "small-q5_1",    "label": "Small (q5_1, 460 MB)", "quant": "q5_1"},
+            {"id": "medium-q5_0",   "label": "Medium (q5_0, 1.5 GB)", "quant": "q5_0"},
         ]
     },
     {
@@ -30,8 +30,8 @@ CATEGORIES = [
         "label": "🖥️ Desktop",
         "description": "Raccomandato per desktop moderni",
         "models": [
-            {"id": "medium-q8_0",        "label": "Medium (769M params, ~2.5 GB)", "quant": "q8_0"},
-            {"id": "large-v3-turbo-q5_0", "label": "Large-v3 Turbo (~2 GB)", "quant": "q5_0"},
+            {"id": "medium-q8_0",        "label": "Medium (q8_0, 2.5 GB)", "quant": "q8_0"},
+            {"id": "large-v3-turbo-q5_0", "label": "L-v3 Turbo (q5_0, 2 GB)", "quant": "q5_0"},
         ]
     },
     {
@@ -39,8 +39,8 @@ CATEGORIES = [
         "label": "🚀 High-End",
         "description": "Massima accuratezza, tanta RAM/VRAM",
         "models": [
-            {"id": "large-v3-q5_0", "label": "Large-v3 (~3.5 GB)", "quant": "q5_0"},
-            {"id": "large-v3",      "label": "Large-v3 F16 (~6 GB)", "quant": "f16"},
+            {"id": "large-v3-q5_0", "label": "Large-v3 (q5_0, 3.5 GB)", "quant": "q5_0"},
+            {"id": "large-v3",      "label": "Large-v3 (f16, 6 GB)", "quant": "f16"},
         ]
     },
 ]

@@ -3,12 +3,11 @@ import os
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QRadioButton, QPushButton, QTextEdit, QButtonGroup, QFileDialog, QMessageBox,
-    QGroupBox, QComboBox, QProgressBar, QToolButton, QFrame, QProgressDialog
+    QGroupBox, QComboBox, QProgressBar, QToolButton, QFrame
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QTimer
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
 
 from utils.config_manager import ConfigManager
-from utils.ytdlp_loader import check_for_update, perform_update
 from services.processing_service import ProcessingService
 from ui.settings_dialog import SettingsDialog
 from core.model_manager import get_categories, get_category, DEFAULT_CATEGORY, resolve_model_id
@@ -29,7 +28,6 @@ class MainWindow(QWidget):
         self.setup_processing_thread()
         self.connect_signals()
         self.load_settings()
-        self._check_ytdlp_update()
 
     def init_ui(self):
         self.setWindowTitle("Whisper GUI")
@@ -86,6 +84,8 @@ class MainWindow(QWidget):
         cat_layout = QHBoxLayout()
         cat_layout.addWidget(QLabel("Categoria:"))
         self.category_combo = QComboBox()
+        self.category_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.category_combo.setMinimumWidth(180)
         for cat in get_categories():
             self.category_combo.addItem(cat["label"], cat["id"])
         self.category_combo.currentIndexChanged.connect(self._on_category_changed)
@@ -110,6 +110,7 @@ class MainWindow(QWidget):
         lang_layout = QHBoxLayout()
         lang_layout.addWidget(QLabel("Lingua:"))
         self.language_combo = QComboBox()
+        self.language_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.language_combo.addItems(["auto", "en", "it", "es", "fr", "de", "ja", "zh", "ru"])
         lang_layout.addWidget(self.language_combo)
         whisper_layout.addLayout(lang_layout)
@@ -117,6 +118,7 @@ class MainWindow(QWidget):
         output_format_layout = QHBoxLayout()
         output_format_layout.addWidget(QLabel("Formato:"))
         self.output_format_combo = QComboBox()
+        self.output_format_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.output_format_combo.addItems(["srt", "vtt", "txt", "tsv", "json", "all"])
         self.output_format_combo.setCurrentText("srt") 
         output_format_layout.addWidget(self.output_format_combo)
@@ -441,40 +443,6 @@ class MainWindow(QWidget):
     def log_output(self, message: str): 
         self.output_text.append(message)
         self.output_text.verticalScrollBar().setValue(self.output_text.verticalScrollBar().maximum())
-        
-    def _check_ytdlp_update(self):
-        QTimer.singleShot(500, self._do_check_ytdlp)
-
-    def _do_check_ytdlp(self):
-        result = check_for_update()
-        if result is None:
-            return
-        old_ver, new_ver = result
-        reply = QMessageBox.question(
-            self, "yt-dlp - Aggiornamento disponibile",
-            f"yt-dlp deve essere aggiornato.\n\n"
-            f"Versione attuale: {old_ver}\n"
-            f"Versione disponibile: {new_ver}\n\n"
-            f"L'aggiornamento è necessario per il download da YouTube.",
-            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
-        )
-        if reply == QMessageBox.StandardButton.Ok:
-            progress = QProgressDialog("Aggiornamento yt-dlp in corso...", None, 0, 0, self)
-            progress.setWindowTitle("Aggiornamento yt-dlp")
-            progress.setModal(True)
-            progress.show()
-            QApplication.processEvents()
-            success = perform_update(new_ver)
-            progress.close()
-            if success:
-                QMessageBox.information(self, "Aggiornamento completato",
-                                        f"yt-dlp aggiornato alla versione {new_ver}.")
-            else:
-                QMessageBox.warning(self, "Aggiornamento fallito",
-                                    "Impossibile aggiornare yt-dlp. Verifica la connessione "
-                                    "e riprova. Puoi continuare con la versione corrente.")
-        else:
-            sys.exit(0)
 
     def closeEvent(self, event):
         if self.is_process_active:

@@ -11,7 +11,7 @@ dev (base)
 ├── feat/platformdirs-config   → config_manager.py: platformdirs
 ├── feat/model-manager         → core/model_manager.py: categorie + GGUF
 ├── feat/youtube-manager-rename → core/youtube_manager.py: rename + stop()
-├── feat/ytdlp-autoupdate      → utils/ytdlp_loader.py: update bloccante
+├── feat/ytdlp-autoupdate      → utils/ytdlp_loader.py: (RIMOSSO — yt-dlp bundlato)
 ├── fix/whispercpp-manager     → core/whispercpp_manager.py: GGUF, fix
 ├── fix/processing-service     → services/processing_service.py: thread safety
 ├── feat/gui-model-selector    → ui/main_window.py: combo box categorie
@@ -45,7 +45,7 @@ whisper_project/
 │   ├── __init__.py
 │   ├── config_manager.py         # Path OS-standard (platformdirs)
 │   ├── audio_utils.py            # ffprobe/ffmpeg utilities
-│   └── ytdlp_loader.py           # yt-dlp auto-update
+│   └── ytdlp_loader.py           # Import wrapper per yt_dlp
 ├── bin/
 │   └── whisper-cli               # Compilato per ogni piattaforma
 ├── media/                        # GIF, icone
@@ -196,65 +196,15 @@ Commit: `refactor: rename Youtube_manager to YoutubeManager, add stop() method`
 
 ---
 
-### Fase 4 — yt-dlp Auto-Update Bloccante
+#~~## Fase 4 — yt-dlp Auto-Update Bloccante (RIMOSSA)~~
 
-Branch: `feat/ytdlp-autoupdate`
+~~Branch: `feat/ytdlp-autoupdate`~~
 Base: `dev`
 
-Nuovo file `utils/ytdlp_loader.py`.
-
-Flusso:
-1. All'avvio dell'app, thread in background chiama API GitHub:
-   `GET https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest`
-2. Confronta `yt_dlp.version.__version__` con `tag_name` (es. `2026.07.15`)
-3. Se versione locale < remota:
-   - Emette segnale `update_required_signal(old_ver, new_ver)`
-   - GUI mostra dialog modale bloccante:
-     ```
-     ╔══════════════════════════════════════════╗
-     ║  yt-dlp deve essere aggiornato           ║
-     ║  Versione attuale: 2026.06.09            ║
-     ║  Versione disponibile: 2026.07.15        ║
-     ║                                          ║
-     ║  [Aggiorna]  [Esci]                      ║
-     ╚══════════════════════════════════════════╝
-     ```
-   - Cliccando "Aggiorna": scarica `.whl` o `.tar.gz` in `~/.cache/WhisperGUI/yt-dlp/`
-   - Estrae e aggiorna il symlink `~/.cache/WhisperGUI/yt-dlp/current/`
-   - Se download fallisce → messaggio "Impossibile aggiornare, controlla connessione"
-   - Permette comunque di procedere (fallback non bloccante)
-4. Import wrapper: `from utils.ytdlp_loader import yt_dlp` invece di `import yt_dlp` diretto
-
-Il wrapper:
-```python
-# utils/ytdlp_loader.py
-import sys, os, threading, logging
-from utils.config_manager import get_cache_dir  # da platformdirs
-
-_YTDLP_CACHE = os.path.join(get_cache_dir(), "yt-dlp", "current")
-_LOCK = threading.Lock()
-_UPDATED = False
-
-def _ensure_ytdlp():
-    if os.path.exists(_YTDLP_CACHE):
-        sys.path.insert(0, _YTDLP_CACHE)
-    import yt_dlp
-    return yt_dlp
-
-def check_for_update():
-    """Check GitHub, return (old_ver, new_ver) or None."""
-    ...
-
-def perform_update(version):
-    """Download and extract new yt-dlp version."""
-    ...
-
-yt_dlp = _ensure_ytdlp()
-```
-
-Per il dialog bloccante, `main_window.py` deve connettere il segnale al primo `show()`.
-
-Commit: `feat: add blocking yt-dlp auto-update on startup`
+~~RIMOSSA. yt-dlp viene bundlato dentro l'eseguibile standalone al momento della build
+(PyInstaller). L'auto-update non funziona in bundle perché il modulo yt_dlp è congelato.~~
+~~Per avere una versione più recente di yt-dlp, l'utente scarica una nuova release di
+WhisperGUI.~~
 
 ---
 
@@ -539,7 +489,7 @@ Non serve `torch`, `torchaudio`, `torchvision`, `openai-whisper`, `requests`, `n
 
 - whisper.cpp: `github.com/ggml-org/whisper.cpp`, tag `v1.9.1` (Jun 2026)
 - Modelli: `huggingface.co/ggml-org/whisper.cpp`
-- yt-dlp: `github.com/yt-dlp/yt-dlp`, API check su `api.github.com/repos/yt-dlp/yt-dlp/releases/latest`
+- yt-dlp: bundlato nell'eseguibile via PyInstaller, nessun auto-update runtime
 - Python: 3.13+ (usare 3.13 per compatibilità Nuitka)
 - Formato modelli: GGUF (`.gguf`), con backward compatibility per `.bin` (GGML)
 - Vulkan: richiede `libvulkan.so.1` sul sistema (tipicamente preinstallato)
@@ -556,7 +506,7 @@ Non serve `torch`, `torchaudio`, `torchvision`, `openai-whisper`, `requests`, `n
 | 1 | Path OS-standard (platformdirs) | `feat/platformdirs-config` | [x] |
 | 2 | ModelManager (categorie + GGUF) | `feat/model-manager` | [x] |
 | 3 | YoutubeManager rename + stop() | `feat/youtube-manager-rename` | [x] |
-| 4 | yt-dlp auto-update bloccante | `feat/ytdlp-autoupdate` | [x] |
+| 4 | yt-dlp auto-update bloccante | `feat/ytdlp-autoupdate` | [x] (RIMOSSO — yt-dlp bundlato nella release) |
 | 5 | Fix whispercpp_manager.py | `fix/whispercpp-manager` | [x] |
 | 6 | Fix processing_service.py | `fix/processing-service` | [x] |
 | 7 | GUI: combo box modelli categorici | `feat/gui-model-selector` | [x] |
