@@ -1,8 +1,0 @@
---extra-index-url https://download.pytorch.org/whl/rocm6.3
-torch
-torchaudio
-torchvision
-openai-whisper
-yt-dlp
-pyqt6
-requests

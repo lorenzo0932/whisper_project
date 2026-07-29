@@ -1,9 +1,15 @@
 input/*
 output_text/*
-.gitignore
-.gitattributes
-__pycache__
+__pycache__/
 __pycache__/*
-
-# Aggiunto da Cline
-output_text/
+build_venv/
+dist/
+*.egg-info/
+external/*
+build/
+bin/
+models/
+.vscode/
+*.spec
+*.tar
+nuitka-crash-report.xml
