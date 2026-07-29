@@ -3,11 +3,12 @@ import os
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QRadioButton, QPushButton, QTextEdit, QButtonGroup, QFileDialog, QMessageBox,
-    QGroupBox, QComboBox, QProgressBar, QToolButton, QFrame
+    QGroupBox, QComboBox, QProgressBar, QToolButton, QFrame, QProgressDialog
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QTimer
 
 from utils.config_manager import ConfigManager
+from utils.ytdlp_loader import check_for_update, perform_update
 from services.processing_service import ProcessingService
 from ui.settings_dialog import SettingsDialog
 
@@ -18,15 +19,16 @@ class MainWindow(QWidget):
         super().__init__()
         self.config_manager = ConfigManager()
         self.is_process_active = False
-        
+
         self.COMPACT_HEIGHT = 350
         self.PROGRESS_HEIGHT = 400
         self.LOG_HEIGHT = 580
-        
+
         self.init_ui()
         self.setup_processing_thread()
         self.connect_signals()
         self.load_settings()
+        self._check_ytdlp_update()
 
     def init_ui(self):
         self.setWindowTitle("Whisper GUI")
@@ -386,6 +388,40 @@ class MainWindow(QWidget):
         self.output_text.append(message)
         self.output_text.verticalScrollBar().setValue(self.output_text.verticalScrollBar().maximum())
         
+    def _check_ytdlp_update(self):
+        QTimer.singleShot(500, self._do_check_ytdlp)
+
+    def _do_check_ytdlp(self):
+        result = check_for_update()
+        if result is None:
+            return
+        old_ver, new_ver = result
+        reply = QMessageBox.question(
+            self, "yt-dlp - Aggiornamento disponibile",
+            f"yt-dlp deve essere aggiornato.\n\n"
+            f"Versione attuale: {old_ver}\n"
+            f"Versione disponibile: {new_ver}\n\n"
+            f"L'aggiornamento è necessario per il download da YouTube.",
+            QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel
+        )
+        if reply == QMessageBox.StandardButton.Ok:
+            progress = QProgressDialog("Aggiornamento yt-dlp in corso...", None, 0, 0, self)
+            progress.setWindowTitle("Aggiornamento yt-dlp")
+            progress.setModal(True)
+            progress.show()
+            QApplication.processEvents()
+            success = perform_update(new_ver)
+            progress.close()
+            if success:
+                QMessageBox.information(self, "Aggiornamento completato",
+                                        f"yt-dlp aggiornato alla versione {new_ver}.")
+            else:
+                QMessageBox.warning(self, "Aggiornamento fallito",
+                                    "Impossibile aggiornare yt-dlp. Verifica la connessione "
+                                    "e riprova. Puoi continuare con la versione corrente.")
+        else:
+            sys.exit(0)
+
     def closeEvent(self, event):
         if self.is_process_active:
             reply = QMessageBox.question(self, 'Uscita', "Elaborazione in corso. Vuoi davvero chiudere e annullare tutto?", QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
