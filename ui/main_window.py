@@ -11,6 +11,7 @@ from utils.config_manager import ConfigManager
 from utils.ytdlp_loader import check_for_update, perform_update
 from services.processing_service import ProcessingService
 from ui.settings_dialog import SettingsDialog
+from core.model_manager import get_categories, get_category, DEFAULT_CATEGORY, resolve_model_id
 
 class MainWindow(QWidget):
     start_processing_signal = pyqtSignal(dict)
@@ -81,19 +82,31 @@ class MainWindow(QWidget):
         
         whisper_group = QGroupBox("Impostazioni Whisper")
         whisper_layout = QVBoxLayout(whisper_group)
-        
-        model_layout = QHBoxLayout()
-        model_layout.addWidget(QLabel("Modello:"))
-        self.model_combo = QComboBox()
-        self.model_combo.addItems([
-            "tiny.en", "tiny", "base.en", "base", "small.en", 
-            "small", "medium.en", "medium", "large-v1", 
-            "large-v2", "large-v3", "large-v3-turbo"
-        ])
-        self.model_combo.setCurrentText("medium")
-        model_layout.addWidget(self.model_combo)
-        whisper_layout.addLayout(model_layout)
-        
+
+        cat_layout = QHBoxLayout()
+        cat_layout.addWidget(QLabel("Categoria:"))
+        self.category_combo = QComboBox()
+        for cat in get_categories():
+            self.category_combo.addItem(cat["label"], cat["id"])
+        self.category_combo.currentIndexChanged.connect(self._on_category_changed)
+        cat_layout.addWidget(self.category_combo)
+        whisper_layout.addLayout(cat_layout)
+
+        self.model_group = QButtonGroup(self)
+        self.model_radio_a = QRadioButton()
+        self.model_radio_b = QRadioButton()
+        self.model_group.addButton(self.model_radio_a, 0)
+        self.model_group.addButton(self.model_radio_b, 1)
+        self.model_radio_a.setChecked(True)
+        whisper_layout.addWidget(self.model_radio_a)
+        whisper_layout.addWidget(self.model_radio_b)
+
+        self.model_info_label = QLabel()
+        self.model_info_label.setStyleSheet("color: gray; font-size: 9pt;")
+        whisper_layout.addWidget(self.model_info_label)
+
+        self._on_category_changed(0)
+
         lang_layout = QHBoxLayout()
         lang_layout.addWidget(QLabel("Lingua:"))
         self.language_combo = QComboBox()
@@ -260,28 +273,51 @@ class MainWindow(QWidget):
         self.browse_output_dir_button.clicked.connect(self.show_output_dir_dialog)
         self.input_type_group.buttonClicked.connect(self.update_browse_button_state)
         self.toggle_log_button.clicked.connect(self.toggle_log_visibility)
+        self.model_group.buttonClicked.connect(self._update_model_info)
         self.update_browse_button_state()
 
     def load_settings(self):
-        self.model_combo.setCurrentText(self.config_manager.get("model", "medium"))
+        cat_id = self.config_manager.get("model_category", DEFAULT_CATEGORY)
+        for i in range(self.category_combo.count()):
+            if self.category_combo.itemData(i) == cat_id:
+                self.category_combo.setCurrentIndex(i)
+                break
+        model_index = self.config_manager.get("model_index", 0)
+        rb = self.model_radio_a if model_index == 0 else self.model_radio_b
+        rb.setChecked(True)
+        self._update_model_info()
+
         self.language_combo.setCurrentText(self.config_manager.get("language", "auto"))
         self.output_format_combo.setCurrentText(self.config_manager.get("output_format", "srt"))
-        
+
         task = self.config_manager.get("task", "transcribe")
-        if task == "translate": self.radio_task_translate.setChecked(True)
-        else: self.radio_task_transcribe.setChecked(True)
-        
+        if task == "translate":
+            self.radio_task_translate.setChecked(True)
+        else:
+            self.radio_task_transcribe.setChecked(True)
+
         default_output_dir = self.config_manager.get_default("output_dir")
         current_output_dir = self.config_manager.get("output_dir")
-        
+
         self.output_dir_entry.setPlaceholderText(f"Default: {default_output_dir}")
         self.output_dir_entry.setText(current_output_dir if current_output_dir != default_output_dir else "")
 
     def run_process(self):
-        if self.radio_youtube.isChecked(): input_type = "youtube"
-        elif self.radio_audio.isChecked(): input_type = "audio"
-        else: input_type = "video"
-        
+        if self.radio_youtube.isChecked():
+            input_type = "youtube"
+        elif self.radio_audio.isChecked():
+            input_type = "audio"
+        else:
+            input_type = "video"
+
+        cat_id = self.category_combo.currentData()
+        model_index = self.model_group.checkedId()
+        if model_index < 0:
+            model_index = 0
+        model_id = resolve_model_id(cat_id, model_index)
+
+        self.config_manager.set("model_category", cat_id)
+        self.config_manager.set("model_index", model_index)
         self.config_manager.set("output_format", self.output_format_combo.currentText())
         self.config_manager.set("output_dir", self.output_dir_entry.text())
 
@@ -289,7 +325,7 @@ class MainWindow(QWidget):
             "input_type": input_type,
             "name": self.name_entry.text() or "audio",
             "file_path": self.file_path_entry.text(),
-            "model": self.model_combo.currentText(),
+            "model": model_id,
             "language": self.language_combo.currentText(),
             "task": "translate" if self.radio_task_translate.isChecked() else "transcribe",
             "output_format": self.output_format_combo.currentText(),
@@ -319,6 +355,24 @@ class MainWindow(QWidget):
                 self.stop_button.setEnabled(False)
                 self.log_output("\n[!] Richiesta di interruzione... Attendere la pulizia del sistema.")
                 self.processing_service.stop()
+
+    def _on_category_changed(self, index):
+        cat = get_categories()[index]
+        m = cat["models"]
+        self.model_radio_a.setText(m[0]["label"])
+        self.model_radio_b.setText(m[1]["label"])
+        self._update_model_info()
+
+    def _update_model_info(self):
+        cat_id = self.category_combo.currentData()
+        cat = get_category(cat_id)
+        idx = self.model_group.checkedId()
+        if idx < 0:
+            idx = 0
+        model = cat["models"][idx]
+        self.model_info_label.setText(
+            f"ID: {model['id']}  |  Quantizzazione: {model['quant']}"
+        )
 
     def open_settings_dialog(self):
         dialog = SettingsDialog(self.config_manager, self)
