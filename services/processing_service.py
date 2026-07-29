@@ -1,5 +1,6 @@
 import os
 import sys
+import logging
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from utils.config_manager import ConfigManager
@@ -7,9 +8,11 @@ from core.whispercpp_manager import WhisperCppManager
 from core.youtube_manager import Youtube_manager
 from utils.audio_utils import get_audio_duration, convert_to_wav_16khz
 
+logger = logging.getLogger(__name__)
+
 class ProcessingService(QObject):
     started_signal = pyqtSignal()
-    stage_changed_signal = pyqtSignal(str) # Notifica la fase attuale (es. "Download...")
+    stage_changed_signal = pyqtSignal(str)
     log_signal = pyqtSignal(str)
     progress_signal = pyqtSignal(int)
     finished_signal = pyqtSignal(bool, str)
@@ -19,18 +22,24 @@ class ProcessingService(QObject):
         self.config_manager = config_manager
         self._is_working = False
         self._is_cancelled = False
-        
-        # Gestione percorsi assoluti basati sulla posizione del progetto
-        # Risolve il problema del lancio tramite file .desktop
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        bin_path = os.path.join(base_path, "bin", "whisper-cli")
-        models_dir = os.path.join(base_path, "models")
-        
-        self.whisper_manager = WhisperCppManager(bin_path=bin_path, models_dir=models_dir)
-        
-        self._generated_files = [] # File da eliminare in caso di stop
-        self._output_prefix = None # Traccia i file .srt/.txt parziali
+
+        self._find_bin_path()
+
+        self._generated_files = []
+        self._output_prefix = None
         self.yt_manager = None
+
+    def _find_bin_path(self):
+        models_dir = self.config_manager.models_dir
+        bin_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin")
+        if not os.path.isdir(bin_dir):
+            bin_dir = os.path.join(sys._MEIPASS, "bin") if hasattr(sys, '_MEIPASS') else bin_dir
+        self._bin_dir = bin_dir
+        self._models_dir = models_dir
+        self.whisper_manager = WhisperCppManager(
+            bin_path=os.path.join(bin_dir, "whisper-cli"),
+            models_dir=models_dir
+        )
 
     def _check_cancelled(self):
         """Metodo di callback per il downloader dei modelli."""
