@@ -20,12 +20,14 @@ class ConfigManager:
     def _get_default_config(self):
         return {
             "device_mode": "gpu",
-            "model": "medium",
             "language": "auto",
             "task": "transcribe",
             "output_format": "srt",
             "input_dir": str(Path.home() / "Downloads"),
-            "output_dir": str(Path.home() / "Documents" / "WhisperGUI")
+            "output_dir": str(Path.home() / "Documents" / "WhisperGUI"),
+            "model_category": "desktop",
+            "model_index": 0,
+            "model": "large-v3-turbo-q5_0"
         }
 
     def _load_config(self):
