@@ -359,6 +359,14 @@ Commit: `feat: replace flat model list with category-based model selector in GUI
 
 ### Fase 8 — CI/CD + Installer
 
+### Pacchettizzazione: PyInstaller (non Nuitka)
+
+Usiamo **PyInstaller** invece di Nuitka perché:
+- Build molto più veloce (~1 min vs ~15 min)
+- Nessun crash di compilazione o bug di compatibilità
+- Stesso risultato: singolo eseguibile standalone
+- Flag: `pyinstaller --onefile --add-data "bin:bin" --add-data "media:media" --name WhisperGUI main.py`
+
 Branch: `feat/ci-cd-release`
 Base: `dev`
 
@@ -375,8 +383,6 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
       - name: Build whisper.cpp (Vulkan)
         run: |
           cmake -B build -DGGML_VULKAN=ON
@@ -386,34 +392,22 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install dependencies
+      - name: Build executable (PyInstaller)
         run: |
-          pip install nuitka PyQt6 yt-dlp platformdirs ordered-set zstandard
-      - name: Compile with Nuitka
-        run: |
-          python -m nuitka --standalone --onefile \
-            --enable-plugin=pyqt6 \
-            --include-data-dir=bin=bin \
-            --include-data-dir=media=media \
-            --jobs=$(nproc) \
-            --output-filename=WhisperGUI-x86_64.AppImage \
-            main.py
-      - name: Create AppImage
-        run: |
-          chmod +x dist/WhisperGUI-x86_64.AppImage
-          mkdir -p installer/linux/output
-          cp dist/WhisperGUI-x86_64.AppImage installer/linux/output/
-      - name: Upload Release Artifact
+          pip install pyinstaller PyQt6 yt-dlp platformdirs
+          pyinstaller --onefile \
+            --add-data "bin:bin" --add-data "media:media" \
+            --name WhisperGUI main.py
+          mv dist/WhisperGUI dist/WhisperGUI-x86_64.AppImage
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: installer/linux/output/WhisperGUI-x86_64.AppImage
+          files: dist/WhisperGUI-x86_64.AppImage
 
   build-macos:
-    runs-on: macos-14  # Apple Silicon (M1 nativo)
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
       - name: Build whisper.cpp (Metal + CoreML)
         run: |
           cmake -B build -DGGML_METAL=ON -DWHISPER_COREML=ON
@@ -423,41 +417,28 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install dependencies
+      - name: Build executable (PyInstaller)
         run: |
-          pip install nuitka PyQt6 yt-dlp platformdirs ordered-set zstandard
-      - name: Compile with Nuitka
-        run: |
-          python -m nuitka --standalone --onefile \
-            --enable-plugin=pyqt6 \
-            --include-data-dir=bin=bin \
-            --include-data-dir=media=media \
-            --jobs=$(sysctl -n hw.logicalcpu) \
-            --output-filename=WhisperGUI-macOS \
-            main.py
+          pip install pyinstaller PyQt6 yt-dlp platformdirs
+          pyinstaller --onefile \
+            --add-data "bin:bin" --add-data "media:media" \
+            --name WhisperGUI main.py
+          mv dist/WhisperGUI dist/WhisperGUI-macOS
       - name: Create .dmg
         run: |
-          # Create .app bundle structure
-          mkdir -p dist/WhisperGUI.app/Contents/MacOS
-          mkdir -p dist/WhisperGUI.app/Contents/Resources
-          cp dist/WhisperGUI-macOS dist/WhisperGUI.app/Contents/MacOS/WhisperGUI
-          # Create Info.plist
-          # Create .dmg
           hdiutil create -volname "WhisperGUI" \
-            -srcfolder dist/WhisperGUI.app \
+            -srcfolder dist/WhisperGUI-macOS \
             -ov -format UDZO \
-            installer/macos/output/WhisperGUI-macOS-universal.dmg
-      - name: Upload Release Artifact
+            dist/WhisperGUI-macOS-universal.dmg
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: installer/macos/output/WhisperGUI-macOS-universal.dmg
+          files: dist/WhisperGUI-macOS-universal.dmg
 
   build-windows:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
       - name: Build whisper.cpp (Vulkan)
         run: |
           cmake -B build -DGGML_VULKAN=ON
@@ -467,25 +448,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install dependencies
+      - name: Build executable (PyInstaller)
         run: |
-          pip install nuitka PyQt6 yt-dlp platformdirs ordered-set zstandard
-      - name: Compile with Nuitka
-        run: |
-          python -m nuitka --standalone --onefile `
-            --enable-plugin=pyqt6 `
-            --include-data-dir=bin=bin `
-            --include-data-dir=media=media `
-            --output-filename=WhisperGUI-x86_64.exe `
-            main.py
-      - name: Create NSIS installer
-        run: |
-          # Create NSIS script and build installer
-          makensis installer\windows\installer.nsi
-      - name: Upload Release Artifact
+          pip install pyinstaller PyQt6 yt-dlp platformdirs
+          pyinstaller --onefile `
+            --add-data "bin;bin" --add-data "media;media" `
+            --name WhisperGUI main.py
+          move dist\WhisperGUI.exe dist\WhisperGUI-x86_64.exe
+      - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: installer/windows/output/WhisperGUI-x86_64-setup.exe
+          files: dist\WhisperGUI-x86_64.exe
 ```
 
 Installer script:
@@ -528,9 +501,9 @@ fi
 echo "WhisperGUI installato in $DEST"
 ```
 
-**macOS** (`installer/macos/make-dmg.sh`): crea bundle .app standard + hdiutil.
+**macOS** (`installer/macos/install.sh`): monta .dmg e copia in /Applications.
 
-**Windows** (`installer/windows/installer.nsi`): NSIS script per installer.
+**Windows** (`installer/windows/install.ps1`): copia .exe e aggiorna PATH utente.
 
 Commit: `feat: add GitHub Actions CI/CD with multi-platform builds and installers`
 
@@ -549,13 +522,16 @@ Ogni push di un tag `v*` triggera la pipeline CI/CD.
 ## Dipendenze
 
 ```
-# requirements.txt
+# requirements.txt (runtime)
 PyQt6
 yt-dlp
 platformdirs
+
+# build (aggiunto solo per compilare l'eseguibile standalone)
+pyinstaller
 ```
 
-Non serve `torch`, `torchaudio`, `torchvision`, `openai-whisper`, `requests`.
+Non serve `torch`, `torchaudio`, `torchvision`, `openai-whisper`, `requests`, `nuitka`.
 
 ---
 
@@ -568,7 +544,7 @@ Non serve `torch`, `torchaudio`, `torchvision`, `openai-whisper`, `requests`.
 - Formato modelli: GGUF (`.gguf`), con backward compatibility per `.bin` (GGML)
 - Vulkan: richiede `libvulkan.so.1` sul sistema (tipicamente preinstallato)
 - macOS: Metal + CoreML via `-DGGML_METAL=ON -DWHISPER_COREML=ON`
-- Build Nuitka: `--standalone --onefile` per singolo eseguibile
+- Build PyInstaller: `pyinstaller --onefile --add-data "bin:bin" --add-data "media:media" --name WhisperGUI main.py`
 
 ---
 

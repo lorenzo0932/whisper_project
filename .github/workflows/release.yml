@@ -30,17 +30,17 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install nuitka PyQt6 yt-dlp platformdirs
+          pip install pyinstaller PyQt6 yt-dlp platformdirs
 
-      - name: Compile with Nuitka
+      - name: Build executable (PyInstaller)
         run: |
-          python -m nuitka --standalone --onefile \
-            --enable-plugin=pyqt6 \
-            --include-data-dir=bin=bin \
-            --include-data-dir=media=media \
-            --jobs=$(nproc) \
-            --output-filename=WhisperGUI-x86_64.AppImage \
+          pyinstaller --onefile \
+            --add-data "bin:bin" \
+            --add-data "media:media" \
+            --paths . \
+            --name WhisperGUI \
             main.py
+          mv dist/WhisperGUI dist/WhisperGUI-x86_64.AppImage
 
       - name: Create installer
         run: |
@@ -73,53 +73,24 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install nuitka PyQt6 yt-dlp platformdirs
+          pip install pyinstaller PyQt6 yt-dlp platformdirs
 
-      - name: Compile with Nuitka
+      - name: Build executable (PyInstaller)
         run: |
-          python -m nuitka --standalone --onefile \
-            --enable-plugin=pyqt6 \
-            --include-data-dir=bin=bin \
-            --include-data-dir=media=media \
-            --jobs=$(sysctl -n hw.logicalcpu) \
-            --output-filename=WhisperGUI-macOS \
+          pyinstaller --onefile \
+            --add-data "bin:bin" \
+            --add-data "media:media" \
+            --paths . \
+            --name WhisperGUI \
             main.py
-
-      - name: Create .app bundle
-        run: |
-          APP_NAME="WhisperGUI"
-          mkdir -p "dist/$APP_NAME.app/Contents/MacOS"
-          mkdir -p "dist/$APP_NAME.app/Contents/Resources"
-          cp "dist/WhisperGUI-macOS" "dist/$APP_NAME.app/Contents/MacOS/$APP_NAME"
-
-          cat > "dist/$APP_NAME.app/Contents/Info.plist" << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleExecutable</key>
-              <string>$APP_NAME</string>
-              <key>CFBundleIdentifier</key>
-              <string>com.whispergui.app</string>
-              <key>CFBundleName</key>
-              <string>$APP_NAME</string>
-              <key>CFBundleVersion</key>
-              <string>${GITHUB_REF_NAME#v}</string>
-              <key>CFBundleShortVersionString</key>
-              <string>${GITHUB_REF_NAME#v}</string>
-              <key>CFBundlePackageType</key>
-              <string>APPL</string>
-              <key>LSMinimumSystemVersion</key>
-              <string>14.0</string>
-          </dict>
-          </plist>
-          EOF
+          mv dist/WhisperGUI dist/WhisperGUI-macOS
 
       - name: Create .dmg
         run: |
           mkdir -p installer/macos/output
+          chmod +x dist/WhisperGUI-macOS
           hdiutil create -volname "WhisperGUI" \
-            -srcfolder "dist/WhisperGUI.app" \
+            -srcfolder dist/WhisperGUI-macOS \
             -ov -format UDZO \
             "installer/macos/output/WhisperGUI-macOS-universal.dmg"
 
@@ -148,16 +119,17 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install nuitka PyQt6 yt-dlp platformdirs
+          pip install pyinstaller PyQt6 yt-dlp platformdirs
 
-      - name: Compile with Nuitka
+      - name: Build executable (PyInstaller)
         run: |
-          python -m nuitka --standalone --onefile `
-            --enable-plugin=pyqt6 `
-            --include-data-dir=bin=bin `
-            --include-data-dir=media=media `
-            --output-filename=WhisperGUI-x86_64.exe `
+          pyinstaller --onefile `
+            --add-data "bin;bin" `
+            --add-data "media;media" `
+            --paths . `
+            --name WhisperGUI `
             main.py
+          move dist\WhisperGUI.exe dist\WhisperGUI-x86_64.exe
 
       - name: Create installer
         run: |
