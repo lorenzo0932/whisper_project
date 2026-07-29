@@ -5,7 +5,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 
 from utils.config_manager import ConfigManager
 from core.whispercpp_manager import WhisperCppManager
-from core.youtube_manager import Youtube_manager
+from core.youtube_manager import YoutubeManager
 from utils.audio_utils import get_audio_duration, convert_to_wav_16khz
 
 logger = logging.getLogger(__name__)
@@ -168,11 +168,10 @@ class ProcessingService(QObject):
         input_type = params['input_type']
         if input_type == "youtube":
             self.stage_changed_signal.emit("Download YouTube...")
-            self.yt_manager = Youtube_manager(
+            self.yt_manager = YoutubeManager(
                 link=params['file_path'],
                 input_folder=self.config_manager.get("input_dir"),
                 name=params['name'],
-                format_id="auto"
             )
             success, result = self.yt_manager.run(progress_callback=self.progress_signal.emit)
             return result if success else None
@@ -220,10 +219,11 @@ class ProcessingService(QObject):
             self._is_cancelled = True
             self.log_signal.emit("\n[!] Richiesta STOP ricevuta.")
             
-            # Tenta di fermare yt-dlp
-            if self.yt_manager and hasattr(self.yt_manager, 'stop'):
-                try: self.yt_manager.stop()
-                except: pass
+            if self.yt_manager:
+                try:
+                    self.yt_manager.stop()
+                except Exception as e:
+                    logger.warning("Errore nello stop di yt-dlp: %s", e)
                 
             # Ferma il binario C++
             self.whisper_manager.stop_process()
