@@ -1,5 +1,6 @@
 input/*
 output_text/*
+installer/*/output/
 __pycache__/
 __pycache__/*
 build_venv/

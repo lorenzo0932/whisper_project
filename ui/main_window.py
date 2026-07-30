@@ -5,7 +5,8 @@ from PyQt6.QtWidgets import (
     QRadioButton, QPushButton, QTextEdit, QButtonGroup, QFileDialog, QMessageBox,
     QGroupBox, QComboBox, QProgressBar, QToolButton, QFrame
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QRect, QEvent
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
 
 from utils.config_manager import ConfigManager
 from services.processing_service import ProcessingService
@@ -20,7 +21,7 @@ class MainWindow(QWidget):
         self.config_manager = ConfigManager()
         self.is_process_active = False
 
-        self.COMPACT_HEIGHT = 350
+        self.COMPACT_HEIGHT = 420
         self.PROGRESS_HEIGHT = 400
         self.LOG_HEIGHT = 580
 
@@ -31,6 +32,7 @@ class MainWindow(QWidget):
 
     def init_ui(self):
         self.setWindowTitle("Whisper GUI")
+        self.setWindowIcon(QIcon("icon/ai_studio_code.svg"))
         self.setGeometry(100, 100, 800, self.COMPACT_HEIGHT)
         self.setMinimumSize(750, self.COMPACT_HEIGHT)
 
@@ -86,8 +88,14 @@ class MainWindow(QWidget):
         self.category_combo = QComboBox()
         self.category_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         self.category_combo.setMinimumWidth(180)
+        category_colors = {
+            "potato": QColor("#F5E6CC"),
+            "laptop": QColor("#FFD54F"),
+            "desktop": QColor("#FF8A65"),
+            "highend": QColor("#EF5350"),
+        }
         for cat in get_categories():
-            self.category_combo.addItem(cat["label"], cat["id"])
+            self.category_combo.addItem(self._make_icon(category_colors[cat["id"]]), cat["label"], cat["id"])
         self._set_combo_dropdown_width(self.category_combo)
         self.category_combo.currentIndexChanged.connect(self._on_category_changed)
         cat_layout.addWidget(self.category_combo)
@@ -96,11 +104,17 @@ class MainWindow(QWidget):
         self.model_group = QButtonGroup(self)
         self.model_radio_a = QRadioButton()
         self.model_radio_b = QRadioButton()
+        self.model_radio_c = QRadioButton()
+        self.model_radio_d = QRadioButton()
         self.model_group.addButton(self.model_radio_a, 0)
         self.model_group.addButton(self.model_radio_b, 1)
+        self.model_group.addButton(self.model_radio_c, 2)
+        self.model_group.addButton(self.model_radio_d, 3)
         self.model_radio_a.setChecked(True)
         whisper_layout.addWidget(self.model_radio_a)
         whisper_layout.addWidget(self.model_radio_b)
+        whisper_layout.addWidget(self.model_radio_c)
+        whisper_layout.addWidget(self.model_radio_d)
 
         self.model_info_label = QLabel()
         self.model_info_label.setStyleSheet("color: gray; font-size: 9pt;")
@@ -220,12 +234,6 @@ class MainWindow(QWidget):
                 subcontrol-origin: margin; subcontrol-position: top left;
                 padding: 0 5px; margin-left: 10px;
             }
-            QLineEdit, QComboBox, QTextEdit {
-                border: 1px solid #AAAAAA; border-radius: 5px;
-                padding: 8px; background-color: palette(base); font-size: 10pt;
-            }
-            QLineEdit:focus, QComboBox:focus, QTextEdit:focus { border: 2px solid palette(highlight); }
-            QComboBox::drop-down { border: none; }
             QPushButton {
                 background-color: palette(button); color: palette(button-text);
                 border: 1px solid #AAAAAA; border-radius: 5px;
@@ -288,8 +296,9 @@ class MainWindow(QWidget):
                 self.category_combo.setCurrentIndex(i)
                 break
         model_index = self.config_manager.get("model_index", 0)
-        rb = self.model_radio_a if model_index == 0 else self.model_radio_b
-        rb.setChecked(True)
+        radios = [self.model_radio_a, self.model_radio_b, self.model_radio_c, self.model_radio_d]
+        if 0 <= model_index < len(radios):
+            radios[model_index].setChecked(True)
         self._update_model_info()
 
         self.language_combo.setCurrentText(self.config_manager.get("language", "auto"))
@@ -366,11 +375,29 @@ class MainWindow(QWidget):
         max_w = max(fm.horizontalAdvance(combo.itemText(i)) for i in range(combo.count()))
         combo.view().setMinimumWidth(max_w + 30)
 
+    def _make_icon(self, color, size=18):
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(color)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(2, 2, size - 4, size - 4)
+        painter.end()
+        return QIcon(pixmap)
+
     def _on_category_changed(self, index):
         cat = get_categories()[index]
         m = cat["models"]
-        self.model_radio_a.setText(m[0]["label"])
-        self.model_radio_b.setText(m[1]["label"])
+        radios = [self.model_radio_a, self.model_radio_b, self.model_radio_c, self.model_radio_d]
+        for i, r in enumerate(radios):
+            if i < len(m):
+                r.setText(m[i]["label"])
+                r.show()
+            else:
+                r.hide()
+        if self.model_group.checkedId() >= len(m):
+            radios[0].setChecked(True)
         self._update_model_info()
 
     def _update_model_info(self):
@@ -451,6 +478,11 @@ class MainWindow(QWidget):
     def log_output(self, message: str): 
         self.output_text.append(message)
         self.output_text.verticalScrollBar().setValue(self.output_text.verticalScrollBar().maximum())
+
+    def changeEvent(self, event):
+        if event.type() == QEvent.Type.PaletteChange:
+            QApplication.setStyle("Fusion")
+        super().changeEvent(event)
 
     def closeEvent(self, event):
         if self.is_process_active:

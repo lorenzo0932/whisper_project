@@ -3,6 +3,13 @@ import json
 import sys
 import os
 
+def _find_binary(name):
+    if hasattr(sys, '_MEIPASS'):
+        path = os.path.join(sys._MEIPASS, 'bin', name)
+        if os.path.exists(path):
+            return path
+    return name
+
 def get_audio_duration(file_path: str) -> float | None:
     """
     Ottiene la durata di un file audio/video in secondi usando ffprobe.
@@ -14,7 +21,7 @@ def get_audio_duration(file_path: str) -> float | None:
         La durata in secondi come float, o None se si verifica un errore.
     """
     command = [
-        'ffprobe',
+        _find_binary('ffprobe'),
         '-v', 'quiet',
         '-print_format', 'json',
         '-show_format',
@@ -23,7 +30,6 @@ def get_audio_duration(file_path: str) -> float | None:
     ]
 
     try:
-        # Nasconde la finestra della console su Windows
         startupinfo = None
         if sys.platform == "win32":
             startupinfo = subprocess.STARTUPINFO()
@@ -40,11 +46,9 @@ def get_audio_duration(file_path: str) -> float | None:
         
         data = json.loads(result.stdout)
         
-        # Cerca la durata nel formato del contenitore
         if 'format' in data and 'duration' in data['format']:
             return float(data['format']['duration'])
         
-        # Se non trovata, cerca nei singoli stream
         if 'streams' in data and data['streams']:
             for stream in data['streams']:
                 if 'duration' in stream:
@@ -60,22 +64,15 @@ def convert_to_wav_16khz(input_file: str, output_file: str) -> bool:
     """
     Converte un file multimediale nel formato richiesto da whisper.cpp:
     WAV, 16kHz, 16-bit, Mono (PCM).
-    
-    Args:
-        input_file: Percorso del file sorgente (mp4, webm, mp3, ecc.)
-        output_file: Percorso del file WAV di destinazione.
-        
-    Returns:
-        True se la conversione ha successo, False altrimenti.
     """
     command = [
-        'ffmpeg',
-        '-y',               # Sovrascrivi file esistente
-        '-i', input_file,   # Input
-        '-ar', '16000',     # Campionamento a 16kHz (Obbligatorio per whisper.cpp)
-        '-ac', '1',         # Canale Mono (Obbligatorio per whisper.cpp)
-        '-c:a', 'pcm_s16le',# Codec PCM 16-bit little endian
-        output_file         # Output
+        _find_binary('ffmpeg'),
+        '-y',
+        '-i', input_file,
+        '-ar', '16000',
+        '-ac', '1',
+        '-c:a', 'pcm_s16le',
+        output_file
     ]
 
     try:
@@ -84,7 +81,6 @@ def convert_to_wav_16khz(input_file: str, output_file: str) -> bool:
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-        # Esegue la conversione catturando eventuali errori
         process = subprocess.run(
             command,
             stdout=subprocess.PIPE,

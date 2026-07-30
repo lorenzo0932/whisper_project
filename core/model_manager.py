@@ -9,7 +9,8 @@ MODEL_REPO = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main"
 CATEGORIES = [
     {
         "id": "potato",
-        "label": "🥔 Potato",
+        "emoji": "🥔",
+        "label": "Potato",
         "description": "PC vecchi, Raspberry Pi, risorse minime",
         "models": [
             {"id": "tiny-q5_1",     "label": "Tiny (q5_1, 75 MB)",  "quant": "q5_1"},
@@ -18,7 +19,8 @@ CATEGORIES = [
     },
     {
         "id": "laptop",
-        "label": "💻 Laptop",
+        "emoji": "💻",
+        "label": "Laptop",
         "description": "Bilanciato qualità/velocità per portatili",
         "models": [
             {"id": "small-q5_1",    "label": "Small (q5_1, 460 MB)", "quant": "q5_1"},
@@ -27,20 +29,25 @@ CATEGORIES = [
     },
     {
         "id": "desktop",
-        "label": "🖥️ Desktop",
+        "emoji": "🖥️",
+        "label": "Desktop",
         "description": "Raccomandato per desktop moderni",
         "models": [
-            {"id": "medium-q8_0",        "label": "Medium (q8_0, 2.5 GB)", "quant": "q8_0"},
+            {"id": "medium-q8_0",         "label": "Medium (q8_0, 2.5 GB)", "quant": "q8_0"},
+            {"id": "large-v2-q5_0",       "label": "L-v2 (q5_0, 2.5 GB)", "quant": "q5_0"},
             {"id": "large-v3-turbo-q5_0", "label": "L-v3 Turbo (q5_0, 2 GB)", "quant": "q5_0"},
         ]
     },
     {
         "id": "highend",
-        "label": "🚀 High-End",
+        "emoji": "🚀",
+        "label": "High-End",
         "description": "Massima accuratezza, tanta RAM/VRAM",
         "models": [
-            {"id": "large-v3-q5_0", "label": "Large-v3 (q5_0, 3.5 GB)", "quant": "q5_0"},
-            {"id": "large-v3",      "label": "Large-v3 (f16, 6 GB)", "quant": "f16"},
+            {"id": "large-v2-q5_0", "label": "L-v2 (q5_0, 2.5 GB)", "quant": "q5_0"},
+            {"id": "large-v2",      "label": "L-v2 (f16, 5.5 GB)", "quant": "f16"},
+            {"id": "large-v3-q5_0", "label": "L-v3 (q5_0, 3.5 GB)", "quant": "q5_0"},
+            {"id": "large-v3",      "label": "L-v3 (f16, 6 GB)", "quant": "f16"},
         ]
     },
 ]
