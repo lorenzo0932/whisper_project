@@ -128,47 +128,48 @@ jobs:
       - name: Create .app bundle
         run: |
           mkdir -p "WhisperGUI.app/Contents/MacOS" "WhisperGUI.app/Contents/Resources"
-
           cp dist/WhisperGUI "WhisperGUI.app/Contents/MacOS/WhisperGUI"
 
           python3 -m pip install cairosvg Pillow --quiet
-          python3 << 'PYEOF'
-import cairosvg, os
-from PIL import Image
 
-cairosvg.svg2png(url='icon/ai_studio_code.svg', write_to='/tmp/icon_large.png',
-                 output_width=1024, output_height=1024)
-
-os.makedirs('/tmp/icon.iconset', exist_ok=True)
-img = Image.open('/tmp/icon_large.png')
-for px, label in [(16,'16'),(32,'32'),(64,'64'),(128,'128'),(256,'256'),(512,'512')]:
-    img.resize((px, px), Image.LANCZOS).save(f'/tmp/icon.iconset/icon_{label}x{label}.png')
-    img.resize((px*2, px*2), Image.LANCZOS).save(f'/tmp/icon.iconset/icon_{label}x{label}@2x.png')
-PYEOF
+          python3 -c "
+          import cairosvg, os
+          from PIL import Image
+          cairosvg.svg2png(url='icon/ai_studio_code.svg', write_to='/tmp/icon_large.png', output_width=1024, output_height=1024)
+          os.makedirs('/tmp/icon.iconset', exist_ok=True)
+          img = Image.open('/tmp/icon_large.png')
+          for px, label in [(16,'16'),(32,'32'),(64,'64'),(128,'128'),(256,'256'),(512,'512')]:
+              img.resize((px, px), Image.LANCZOS).save('/tmp/icon.iconset/icon_'+label+'x'+label+'.png')
+              img.resize((px*2, px*2), Image.LANCZOS).save('/tmp/icon.iconset/icon_'+label+'x'+label+'@2x.png')
+          "
           iconutil -c icns /tmp/icon.iconset -o "WhisperGUI.app/Contents/Resources/icon.icns"
 
-          cat > "WhisperGUI.app/Contents/Info.plist" << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleExecutable</key>
-  <string>WhisperGUI</string>
-  <key>CFBundleIdentifier</key>
-  <string>com.whisper.gui</string>
-  <key>CFBundleName</key>
-  <string>WhisperGUI</string>
-  <key>CFBundleIconFile</key>
-  <string>icon.icns</string>
-  <key>CFBundlePackageType</key>
-  <string>APPL</string>
-  <key>CFBundleShortVersionString</key>
-  <string>1.0.0</string>
-  <key>LSMinimumSystemVersion</key>
-  <string>12.0</string>
-</dict>
-</plist>
-EOF
+          python3 -c "
+          import textwrap, os
+          plist = textwrap.dedent('''\\
+              <?xml version=\"1.0\" encoding=\"UTF-8\"?>
+              <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+              <plist version=\"1.0\">
+              <dict>
+                <key>CFBundleExecutable</key>
+                <string>WhisperGUI</string>
+                <key>CFBundleIdentifier</key>
+                <string>com.whisper.gui</string>
+                <key>CFBundleName</key>
+                <string>WhisperGUI</string>
+                <key>CFBundleIconFile</key>
+                <string>icon.icns</string>
+                <key>CFBundlePackageType</key>
+                <string>APPL</string>
+                <key>CFBundleShortVersionString</key>
+                <string>1.0.0</string>
+                <key>LSMinimumSystemVersion</key>
+                <string>12.0</string>
+              </dict>
+              </plist>''')
+          with open('WhisperGUI.app/Contents/Info.plist', 'w') as f:
+              f.write(plist)
+          "
 
       - name: Create .dmg
         run: |
