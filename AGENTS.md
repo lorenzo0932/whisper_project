@@ -21,13 +21,19 @@ WhisperGUI: GUI PyQt6 + trascrizione whisper.cpp (backend CLI). Entry: `main.py`
 - `external/whisper.cpp` viene clonato da `build.py build-engine` (tag `WHISPERCPP_TAG`, v1.9.x); `external/*`, `bin/`, `models/`, `dist/`, `build/` sono gitignored
 - `find_package(Vulkan COMPONENTS glslc REQUIRED)` richiede il binario **glslc**:
   - `glslang-tools` di Ubuntu **non** lo fornisce; il pacchetto `shaderc` del repo LunarG sì (nel workflow: download diretto del .deb, NO repo LunarG in apt — il suo `libvulkan-dev` 1.4.313~rc1 è rotto: senza header, sovrascrive quello buono di Ubuntu)
+  - `ggml-vulkan` richiede anche `find_package(SPIRV-Headers CONFIG)`: su Ubuntu serve `apt install spirv-headers` (**jammy-updates** 1.4.341 — la versione base di jammy non ha `SPIRV-HeadersConfig.cmake`); su Fedora arriva da `spirv-headers-devel` (per questo i test locali non lo segnalavano)
   - Windows: `choco install vulkan-sdk` + export `VULKAN_SDK` e `Bin` via `$env:GITHUB_ENV`/`GITHUB_PATH` (il pacchetto choco non imposta env da solo)
+- **Caching CI** (gratis, actions/cache): 3 livelli per-OS — pip (`setup-python` con `cache: pip`), download (`build/cache`, chiave `downloads-<os>-hash(build.py)`) e engine (`bin/`, chiave `engine-<os>-hash(build.py)` → `build-engine --skip-engine` sul cache-hit). Le chiavi dipendono solo da build.py: modifiche ai .py dell'app non invalidano l'engine; `--skip-engine` chiama comunque `ensure_ffmpeg()` (difensivo)
+- Il job `validate` (fail-fast, ~10s) esegue `compileall` + `bash -n` prima dei job pesanti: un errore di sintassi non brucia più 3 run parallele
+- `requirements.txt` è **pinnato** (PyQt6/yt-dlp/platformdirs/pyinstaller): aggiornare SOLO dopo aver testato il venv e aggiornando anche la cache pip
 - `aux/` è un path riservato su Windows (bloccava il checkout git) — non crearne uno alla root
 - `--add-data` di PyInstaller richiede path **assoluti** (in build.py)
 - Lo zip NSIS ha `nsis-3.12/` in root: `package_windows` cerca `makensis.exe` ricorsivamente
+- NSIS: `HWND_BROADCAST` è già definito da NSIS 3.x — non ridefinirlo senza guardia `!ifndef` (errore hard in compilazione)
 - macOS: niente `codesign` del bundle `.app` (senza notarizzazione non serve, in CI fallisce silenziosamente); ffmpeg/whisper-cli firmati ad-hoc in build-engine; ffmpeg da osxexperts (binari arm64), su Linux johnvansickle, su Windows BtbN
 - `softprops/action-gh-release` fallisce senza tag: upload solo con `if: github.event_name == 'push'` (i dispatch validano la build fino al packaging)
-- CI testabile con `gh workflow run release.yml --ref <branch> -f os=linux|macos|windows|all`; runner: ubuntu-22.04 (glibc 2.35 = baseline compatibilità), macos-14 (arm64), windows-latest
+- `run()` in build.py stampa stderr/stdout (tail) quando un comando fallisce: i log CI dicono l'errore ESATTO del tool (cmake/nsis/codesign)
+- CI testabile con `gh workflow run release.yml --ref <branch> -f os=linux|macos|windows|all`; runner: ubuntu-22.04 (glibc 2.35 = baseline compatibilità), macos-14 (arm64), windows-latest; primo run a cache fredda ~12 min, iterazioni successive ~3 min
 
 ## Git workflow
 
