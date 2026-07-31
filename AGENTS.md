@@ -19,6 +19,7 @@ WhisperGUI: GUI PyQt6 + trascrizione whisper.cpp (backend CLI). Entry: `main.py`
 ## Build & CI — gotchas pagati in run CI (non ripetere gli errori)
 
 - `external/whisper.cpp` viene clonato da `build.py build-engine` (tag `WHISPERCPP_TAG`, v1.9.x); `external/*`, `bin/`, `models/`, `dist/`, `build/` sono gitignored
+- **Licenze**: progetto GPL-3.0 (`LICENSE`, copyright Madonna0932); `licenses/` contiene i testi integrali delle terze parti (aggiornarla quando cambia una dipendenza) e `THIRD_PARTY_NOTICES.md` la tabella riassuntiva; `build.py` la include nel bundle con `--add-data` (come bin/media/icon)
 - `find_package(Vulkan COMPONENTS glslc REQUIRED)` richiede il binario **glslc**:
   - `glslang-tools` di Ubuntu **non** lo fornisce; il pacchetto `shaderc` del repo LunarG sì (nel workflow: download diretto del .deb, NO repo LunarG in apt)
   - **Headers Vulkan di jammy (libvulkan-dev 1.3.204) troppo vecchi per ggml-vulkan v1.9.1** (errori `layer_setting_info`, `eMesaDozen`, `PhysicalDeviceProperties2`): su Linux il workflow installa il **trio LunarG 1.4.313.0~rc1 via deb diretti** — `libvulkan1` + `libvulkan-dev` + `vulkan-headers` + `shaderc` — e NON il `libvulkan-dev` di Ubuntu (che dichiara `Breaks: vulkan-headers`: con `--force-overwrite` comunque dpkg rifiuta la config; si sostituisce l'intero trio, niente mix). Fedora ha vulkan-headers 1.4.341 (per questo i test locali non segnalavano nulla)

@@ -213,6 +213,7 @@ def build_app(args):
         "--add-data", f"{os.path.join(ROOT, 'bin')}{SEP}bin",
         "--add-data", f"{os.path.join(ROOT, 'media')}{SEP}media",
         "--add-data", f"{os.path.join(ROOT, 'icon')}{SEP}icon",
+        "--add-data", f"{os.path.join(ROOT, 'licenses')}{SEP}licenses",
         "--paths", ROOT,
         "--name", APP_NAME,
         os.path.join(ROOT, "main.py"),
