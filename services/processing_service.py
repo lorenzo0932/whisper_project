@@ -1,5 +1,4 @@
 import os
-import sys
 import logging
 import threading
 from PyQt6.QtCore import QObject, pyqtSignal
@@ -7,6 +6,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from utils.config_manager import ConfigManager
 from core.whispercpp_manager import WhisperCppManager
 from core.youtube_manager import YoutubeManager
+from utils.resource_path import resource_path, binary_name
 from utils.audio_utils import (
     get_audio_duration,
     convert_to_wav_16khz,
@@ -42,11 +42,11 @@ class ProcessingService(QObject):
         models_dir = self.config_manager.models_dir
         bin_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin")
         if not os.path.isdir(bin_dir):
-            bin_dir = os.path.join(sys._MEIPASS, "bin") if hasattr(sys, '_MEIPASS') else bin_dir
+            bin_dir = resource_path("bin")
         self._bin_dir = bin_dir
         self._models_dir = models_dir
         self.whisper_manager = WhisperCppManager(
-            bin_path=os.path.join(bin_dir, "whisper-cli"),
+            bin_path=os.path.join(bin_dir, binary_name("whisper-cli")),
             models_dir=models_dir
         )
 

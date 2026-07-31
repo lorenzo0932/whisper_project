@@ -1,9 +1,11 @@
 import subprocess
 import os
 import re
+import sys
 import threading
 import logging
 from core.model_manager import ModelManager
+from utils.resource_path import binary_name
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +14,9 @@ _TIMESTAMP_RE = re.compile(
 )
 
 class WhisperCppManager:
-    def __init__(self, bin_path="bin/whisper-cli", models_dir="models"):
+    def __init__(self, bin_path=None, models_dir="models"):
+        if bin_path is None:
+            bin_path = os.path.join("bin", binary_name("whisper-cli"))
         self.bin_path = os.path.abspath(bin_path)
         self.models_dir = os.path.abspath(models_dir)
         self.current_process = None
@@ -103,8 +107,19 @@ class WhisperCppManager:
             with self.process_lock:
                 env = os.environ.copy()
                 bin_dir = os.path.dirname(self.bin_path)
-                existing = env.get("LD_LIBRARY_PATH", "")
-                env["LD_LIBRARY_PATH"] = f"{bin_dir}:{existing}" if existing else bin_dir
+                if sys.platform == "win32":
+                    lib_env = "PATH"
+                    existing = env.get("PATH", "")
+                    sep = os.pathsep
+                elif sys.platform == "darwin":
+                    lib_env = "DYLD_LIBRARY_PATH"
+                    existing = env.get("DYLD_LIBRARY_PATH", "")
+                    sep = ":"
+                else:
+                    lib_env = "LD_LIBRARY_PATH"
+                    existing = env.get("LD_LIBRARY_PATH", "")
+                    sep = ":"
+                env[lib_env] = f"{bin_dir}{sep}{existing}" if existing else bin_dir
 
                 self.current_process = subprocess.Popen(
                     command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

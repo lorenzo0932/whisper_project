@@ -4,14 +4,15 @@ import re
 import sys
 import os
 
+from utils.resource_path import resource_path, binary_name
+
 _OUT_TIME_MS_RE = re.compile(r'out_time_ms=(\d+)')
 
 def _find_binary(name):
-    if hasattr(sys, '_MEIPASS'):
-        path = os.path.join(sys._MEIPASS, 'bin', name)
-        if os.path.exists(path):
-            return path
-    return name
+    path = os.path.join(resource_path('bin'), binary_name(name))
+    if os.path.exists(path):
+        return path
+    return binary_name(name)
 
 def get_audio_duration(file_path: str) -> float | None:
     """

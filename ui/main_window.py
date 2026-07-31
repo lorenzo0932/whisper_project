@@ -9,6 +9,7 @@ from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QRect, QEvent
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
 
 from utils.config_manager import ConfigManager
+from utils.resource_path import resource_path
 from services.processing_service import ProcessingService
 from ui.settings_dialog import SettingsDialog
 from core.model_manager import get_categories, get_category, DEFAULT_CATEGORY, resolve_model_id
@@ -32,7 +33,7 @@ class MainWindow(QWidget):
 
     def init_ui(self):
         self.setWindowTitle("Whisper GUI")
-        self.setWindowIcon(QIcon("icon/ai_studio_code.svg"))
+        self.setWindowIcon(QIcon(resource_path("icon/ai_studio_code.svg")))
         self.setGeometry(100, 100, 800, self.COMPACT_HEIGHT)
         self.setMinimumSize(750, self.COMPACT_HEIGHT)
 
