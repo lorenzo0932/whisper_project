@@ -1,4 +1,4 @@
-PyQt6
-yt-dlp
-platformdirs
-pyinstaller
+PyQt6==6.11.0
+yt-dlp==2026.7.4
+platformdirs==4.11.0
+pyinstaller==6.21.0

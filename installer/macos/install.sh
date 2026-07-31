@@ -3,7 +3,7 @@ set -e
 
 APP_NAME="WhisperGUI"
 APP_BUNDLE="${APP_NAME}.app"
-DMG_NAME="${APP_NAME}-macOS-universal.dmg"
+DMG_NAME="${APP_NAME}-macOS-arm64.dmg"
 DEST="/Applications/${APP_BUNDLE}"
 CLI_SYMLINK="/usr/local/bin/whisper-gui"
 MOUNT="/Volumes/${APP_NAME}"
@@ -14,6 +14,9 @@ usage() {
     echo "Uso: $0 [-i <path.dmg>] [--uninstall]"
     echo "  -i <file>    Installa dal DMG specificato"
     echo "  --uninstall  Rimuove WhisperGUI dal sistema"
+    echo ""
+    echo "Nota: questo script e' pensato per gli sviluppatori."
+    echo "L'utente finale: doppio click sul DMG e drag & drop in Applicazioni."
     exit 1
 }
 

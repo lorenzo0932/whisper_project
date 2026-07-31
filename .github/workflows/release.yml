@@ -17,226 +17,195 @@ on:
     tags: ['v*']
 
 jobs:
-  build-linux:
-    if: |
-      github.event_name == 'push' ||
-      inputs.os == 'all' ||
-      inputs.os == 'linux'
+  validate:
+    name: Fail-Fast Validation
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          submodules: recursive
+          python-version: '3.13'
+      - name: Validate Syntax (Python & Bash)
+        run: |
+          echo "Verifica sintassi Python (compileall)..."
+          python -m compileall -q .
+          echo "Verifica sintassi script Bash (se presenti)..."
+          if [ -d "scripts" ]; then find scripts -name "*.sh" -exec bash -n {} +; fi
+
+  build-linux:
+    needs: validate
+    if: github.event_name == 'push' || inputs.os == 'all' || inputs.os == 'linux'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq cmake build-essential libvulkan-dev
-
-      - name: Build whisper.cpp (Vulkan)
-        run: |
-          cmake -B build -DGGML_VULKAN=ON
-          cmake --build build -j
-          mkdir -p bin
-          cp build/bin/whisper-cli bin/
-
-      - name: Download static ffmpeg
-        run: |
-          mkdir -p bin
-          curl -sL "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz?accept=yes" -o /tmp/ffmpeg.tar.xz
-          tar -xJf /tmp/ffmpeg.tar.xz -C /tmp/
-          cp /tmp/ffmpeg-*-static/ffmpeg /tmp/ffmpeg-*-static/ffprobe bin/
-          chmod +x bin/ffmpeg bin/ffprobe
+          # libgl1/libegl1/libglib2.0-0/libxkbcommon0/...: runtime Qt per packaging PyInstaller (icon_gen.py); file: richiesto da appimagetool
+          # spirv-headers (jammy-updates) fornisce SPIRV-HeadersConfig.cmake richiesto da ggml-vulkan
+          sudo apt-get install -y -qq cmake build-essential spirv-headers libgl1 libegl1 libglib2.0-0 libxkbcommon0 libfontconfig1 libfreetype6 libdbus-1-3 file
+          # Vulkan SDK 1.4.313 (deb LunarG): gli header 1.3.204 di jammy sono troppo vecchi per ggml-vulkan v1.9.1
+          # (libvulkan-dev di Ubuntu dichiara Breaks su vulkan-headers: si sostituisce l'intero trio)
+          wget -q https://packages.lunarg.com/vulkan/pool/main/v/vulkan-loader/libvulkan1_1.4.313.0~rc1-1lunarg22.04-1_amd64.deb -O /tmp/libvulkan1.deb
+          wget -q https://packages.lunarg.com/vulkan/pool/main/v/vulkan-loader/libvulkan-dev_1.4.313.0~rc1-1lunarg22.04-1_amd64.deb -O /tmp/libvulkan-dev.deb
+          wget -q https://packages.lunarg.com/vulkan/pool/main/v/vulkan-headers/vulkan-headers_1.4.313.0~rc1-1lunarg22.04-1_all.deb -O /tmp/vulkan-headers.deb
+          wget -q https://packages.lunarg.com/vulkan/pool/main/s/shaderc/shaderc_2025.2~rc1-1lunarg22.04-1_amd64.deb -O /tmp/shaderc.deb
+          sudo dpkg -i /tmp/libvulkan1.deb /tmp/libvulkan-dev.deb /tmp/vulkan-headers.deb /tmp/shaderc.deb
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
 
-      - name: Install Python dependencies
-        run: |
-          pip install pyinstaller PyQt6 yt-dlp platformdirs
+      - name: Cache Downloads (build/cache)
+        uses: actions/cache@v4
+        with:
+          path: build/cache
+          key: downloads-linux-${{ hashFiles('build.py') }}
 
-      - name: Build executable (PyInstaller)
-        run: |
-          pyinstaller --onefile \
-            --add-data "bin:bin" \
-            --add-data "media:media" \
-            --add-data "icon:icon" \
-            --paths . \
-            --name WhisperGUI \
-            main.py
-          mv dist/WhisperGUI dist/WhisperGUI-x86_64.AppImage
+      - name: Cache Engine (bin)
+        id: cache-engine
+        uses: actions/cache@v4
+        with:
+          path: bin
+          key: engine-linux-${{ hashFiles('build.py') }}
 
-      - name: Create installer
+      - name: Bootstrap
+        run: python3 build.py bootstrap
+
+      - name: Build whisper.cpp (Vulkan) + ffmpeg
         run: |
-          mkdir -p installer/linux/output
-          cp dist/WhisperGUI-x86_64.AppImage installer/linux/output/
-          chmod +x installer/linux/output/WhisperGUI-x86_64.AppImage
+          if [ "${{ steps.cache-engine.outputs.cache-hit }}" = "true" ]; then
+            python3 build.py build-engine --skip-engine
+          else
+            python3 build.py build-engine
+          fi
+
+      - name: Build executable (PyInstaller onedir)
+        run: python3 build.py build
+
+      - name: Package AppImage
+        run: python3 build.py package
 
       - name: Upload Release Asset
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           files: installer/linux/output/WhisperGUI-x86_64.AppImage
 
   build-macos:
-    if: |
-      github.event_name == 'push' ||
-      inputs.os == 'all' ||
-      inputs.os == 'macos'
+    needs: validate
+    if: github.event_name == 'push' || inputs.os == 'all' || inputs.os == 'macos'
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Build whisper.cpp (Metal + CoreML)
-        run: |
-          cmake -B build -DGGML_METAL=ON -DWHISPER_COREML=ON
-          cmake --build build -j
-          mkdir -p bin
-          cp build/bin/whisper-cli bin/
-
-      - name: Download static ffmpeg
-        run: |
-          mkdir -p bin
-          curl -sL "https://evermeet.cx/ffmpeg/get/ffmpeg/zip" -o /tmp/ffmpeg.zip
-          curl -sL "https://evermeet.cx/ffmpeg/get/ffprobe/zip" -o /tmp/ffprobe.zip
-          unzip -o /tmp/ffmpeg.zip -d bin/
-          unzip -o /tmp/ffprobe.zip -d bin/
-          chmod +x bin/ffmpeg bin/ffprobe
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
 
-      - name: Install Python dependencies
+      - name: Cache Downloads (build/cache)
+        uses: actions/cache@v4
+        with:
+          path: build/cache
+          key: downloads-macos-${{ hashFiles('build.py') }}
+
+      - name: Cache Engine (bin)
+        id: cache-engine
+        uses: actions/cache@v4
+        with:
+          path: bin
+          key: engine-macos-${{ hashFiles('build.py') }}
+
+      - name: Bootstrap
+        run: python3 build.py bootstrap
+
+      - name: Build whisper.cpp (Metal + CoreML) + ffmpeg arm64
         run: |
-          pip install pyinstaller PyQt6 yt-dlp platformdirs
+          if [ "${{ steps.cache-engine.outputs.cache-hit }}" = "true" ]; then
+            python3 build.py build-engine --skip-engine
+          else
+            python3 build.py build-engine
+          fi
 
-      - name: Build executable (PyInstaller)
-        run: |
-          pyinstaller --onefile \
-            --add-data "bin:bin" \
-            --add-data "media:media" \
-            --add-data "icon:icon" \
-            --paths . \
-            --name WhisperGUI \
-            main.py
+      - name: Build executable (PyInstaller onedir)
+        run: python3 build.py build
 
-      - name: Create .app bundle
-        run: |
-          mkdir -p "WhisperGUI.app/Contents/MacOS" "WhisperGUI.app/Contents/Resources"
-          cp dist/WhisperGUI "WhisperGUI.app/Contents/MacOS/WhisperGUI"
-
-          python3 -m pip install cairosvg Pillow --quiet
-
-          python3 -c "
-          import cairosvg, os
-          from PIL import Image
-          cairosvg.svg2png(url='icon/ai_studio_code.svg', write_to='/tmp/icon_large.png', output_width=1024, output_height=1024)
-          os.makedirs('/tmp/icon.iconset', exist_ok=True)
-          img = Image.open('/tmp/icon_large.png')
-          for px, label in [(16,'16'),(32,'32'),(64,'64'),(128,'128'),(256,'256'),(512,'512')]:
-              img.resize((px, px), Image.LANCZOS).save('/tmp/icon.iconset/icon_'+label+'x'+label+'.png')
-              img.resize((px*2, px*2), Image.LANCZOS).save('/tmp/icon.iconset/icon_'+label+'x'+label+'@2x.png')
-          "
-          iconutil -c icns /tmp/icon.iconset -o "WhisperGUI.app/Contents/Resources/icon.icns"
-
-          python3 -c "
-          import textwrap, os
-          plist = textwrap.dedent('''\\
-              <?xml version=\"1.0\" encoding=\"UTF-8\"?>
-              <!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
-              <plist version=\"1.0\">
-              <dict>
-                <key>CFBundleExecutable</key>
-                <string>WhisperGUI</string>
-                <key>CFBundleIdentifier</key>
-                <string>com.whisper.gui</string>
-                <key>CFBundleName</key>
-                <string>WhisperGUI</string>
-                <key>CFBundleIconFile</key>
-                <string>icon.icns</string>
-                <key>CFBundlePackageType</key>
-                <string>APPL</string>
-                <key>CFBundleShortVersionString</key>
-                <string>1.0.0</string>
-                <key>LSMinimumSystemVersion</key>
-                <string>12.0</string>
-              </dict>
-              </plist>''')
-          with open('WhisperGUI.app/Contents/Info.plist', 'w') as f:
-              f.write(plist)
-          "
-
-      - name: Create .dmg
-        run: |
-          mkdir -p installer/macos/output
-          hdiutil create -volname "WhisperGUI" \
-            -srcfolder WhisperGUI.app \
-            -ov -format UDZO \
-            "installer/macos/output/WhisperGUI-macOS-universal.dmg"
+      - name: Package .app + DMG
+        run: python3 build.py package
 
       - name: Upload Release Asset
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          files: installer/macos/output/WhisperGUI-macOS-universal.dmg
+          files: installer/macos/output/WhisperGUI-macOS-arm64.dmg
 
   build-windows:
-    if: |
-      github.event_name == 'push' ||
-      inputs.os == 'all' ||
-      inputs.os == 'windows'
+    needs: validate
+    if: github.event_name == 'push' || inputs.os == 'all' || inputs.os == 'windows'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Build whisper.cpp (Vulkan)
-        run: |
-          if not exist bin mkdir bin
-          cmake -B build -DGGML_VULKAN=ON
-          cmake --build build --config Release -j
-          copy build\bin\Release\whisper-cli.exe bin\
-
-      - name: Download static ffmpeg
-        shell: pwsh
-        run: |
-          mkdir -Force bin
-          curl -sL "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-7.1.zip" -o $env:TEMP\ffmpeg.zip
-          Expand-Archive -Path $env:TEMP\ffmpeg.zip -DestinationPath $env:TEMP\ffmpeg
-          $dir = Get-ChildItem $env:TEMP\ffmpeg -Directory | Select-Object -First 1
-          Copy-Item "$($dir.FullName)\bin\ffmpeg.exe" bin\
-          Copy-Item "$($dir.FullName)\bin\ffprobe.exe" bin\
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
 
-      - name: Install Python dependencies
-        run: |
-          pip install pyinstaller PyQt6 yt-dlp platformdirs
+      - name: Cache Downloads (build/cache)
+        uses: actions/cache@v4
+        with:
+          path: build/cache
+          key: downloads-windows-${{ hashFiles('build.py') }}
 
-      - name: Build executable (PyInstaller)
-        run: |
-          pyinstaller --onefile `
-            --add-data "bin;bin" `
-            --add-data "media;media" `
-            --add-data "icon;icon" `
-            --paths . `
-            --name WhisperGUI main.py
-          move dist\WhisperGUI.exe dist\WhisperGUI-x86_64.exe
+      - name: Cache Engine (bin)
+        id: cache-engine
+        uses: actions/cache@v4
+        with:
+          path: bin
+          key: engine-windows-${{ hashFiles('build.py') }}
 
-      - name: Create installer
+      - name: Install Vulkan SDK (glslc)
+        shell: pwsh
         run: |
-          mkdir installer\windows\output
-          copy dist\WhisperGUI-x86_64.exe installer\windows\output\
+          choco install vulkan-sdk -y --no-progress
+          $sdk = Get-ChildItem 'C:\VulkanSDK' -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $sdk) { throw 'Vulkan SDK non installato' }
+          echo "VULKAN_SDK=$($sdk.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "$($sdk.FullName)\Bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Bootstrap
+        shell: pwsh
+        run: python build.py bootstrap
+
+      - name: Build whisper.cpp (Vulkan) + ffmpeg
+        shell: pwsh
+        run: |
+          if ('${{ steps.cache-engine.outputs.cache-hit }}' -eq 'true') {
+            python build.py build-engine --skip-engine
+          } else {
+            python build.py build-engine
+          }
+
+      - name: Build executable (PyInstaller onedir)
+        shell: pwsh
+        run: python build.py build
+
+      - name: Package NSIS installer
+        shell: pwsh
+        run: python build.py package
 
       - name: Upload Release Asset
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          files: installer/windows/output/WhisperGUI-x86_64.exe
+          files: installer/windows/output/WhisperGUI-x86_64-setup.exe

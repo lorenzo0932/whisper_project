@@ -7,6 +7,7 @@ from PyQt6.QtGui import QIcon
 
 from ui.main_window import MainWindow
 from utils.config_manager import ConfigManager
+from utils.resource_path import resource_path
 from services.processing_service import ProcessingService
 
 def run_cli(args, config):
@@ -78,7 +79,7 @@ if __name__ == '__main__':
     else:
         # Modalità GUI standard
         app = QApplication(sys.argv)
-        app.setWindowIcon(QIcon("icon/ai_studio_code.svg"))
+        app.setWindowIcon(QIcon(resource_path("icon/ai_studio_code.svg")))
         app.setDesktopFileName("whisper-gui")
         window = MainWindow()
         window.show()
