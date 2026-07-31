@@ -29,7 +29,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq cmake build-essential libvulkan-dev
+          sudo apt-get install -y -qq cmake build-essential libvulkan-dev glslang-tools
 
       - name: Setup Python
         uses: actions/setup-python@v5
