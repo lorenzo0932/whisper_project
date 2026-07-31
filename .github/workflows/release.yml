@@ -16,6 +16,9 @@ on:
   push:
     tags: ['v*']
 
+permissions:
+  contents: write
+
 jobs:
   validate:
     name: Fail-Fast Validation
