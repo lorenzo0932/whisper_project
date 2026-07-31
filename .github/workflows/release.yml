@@ -29,11 +29,9 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq gnupg
-          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | gpg --dearmor | sudo tee /usr/share/keyrings/lunarg.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/lunarg.gpg] https://packages.lunarg.com/vulkan jammy main" | sudo tee /etc/apt/sources.list.d/lunarg-vulkan.list
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq cmake build-essential libvulkan-dev shaderc
+          sudo apt-get install -y -qq cmake build-essential libvulkan-dev
+          wget -q https://packages.lunarg.com/vulkan/pool/main/s/shaderc/shaderc_2025.2~rc1-1lunarg22.04-1_amd64.deb -O /tmp/shaderc.deb
+          sudo dpkg -i /tmp/shaderc.deb
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -53,6 +51,7 @@ jobs:
         run: python3 build.py package
 
       - name: Upload Release Asset
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           files: installer/linux/output/WhisperGUI-x86_64.AppImage
@@ -84,6 +83,7 @@ jobs:
         run: python3 build.py package
 
       - name: Upload Release Asset
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           files: installer/macos/output/WhisperGUI-macOS-arm64.dmg
@@ -128,6 +128,7 @@ jobs:
         run: python build.py package
 
       - name: Upload Release Asset
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
           files: installer/windows/output/WhisperGUI-x86_64-setup.exe
