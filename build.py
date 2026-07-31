@@ -120,11 +120,13 @@ def build_engine(args):
     run(["cmake", "-B", "build", *backend], cwd=src)
 
     log("Compilazione whisper.cpp...")
+    jobs = os.environ.get("BUILD_JOBS")
+    build_args = ["-j", jobs] if jobs else ["-j"]
     if IS_WINDOWS:
-        run(["cmake", "--build", "build", "--config", "Release", "-j"], cwd=src)
+        run(["cmake", "--build", "build", "--config", "Release", *build_args], cwd=src)
         src_cli = os.path.join(src, "build", "bin", "Release", "whisper-cli.exe")
     else:
-        run(["cmake", "--build", "build", "-j"], cwd=src)
+        run(["cmake", "--build", "build", *build_args], cwd=src)
         src_cli = os.path.join(src, "build", "bin", "whisper-cli")
 
     shutil.copy2(src_cli, os.path.join(BIN_DIR, WHISPER_CLI))

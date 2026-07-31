@@ -43,10 +43,16 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
+          # libgl1/libegl1/libglib2.0-0/libxkbcommon0/...: runtime Qt per packaging PyInstaller (icon_gen.py); file: richiesto da appimagetool
           # spirv-headers (jammy-updates) fornisce SPIRV-HeadersConfig.cmake richiesto da ggml-vulkan
-          sudo apt-get install -y -qq cmake build-essential libvulkan-dev spirv-headers
+          sudo apt-get install -y -qq cmake build-essential spirv-headers libgl1 libegl1 libglib2.0-0 libxkbcommon0 libfontconfig1 libfreetype6 libdbus-1-3 file
+          # Vulkan SDK 1.4.313 (deb LunarG): gli header 1.3.204 di jammy sono troppo vecchi per ggml-vulkan v1.9.1
+          # (libvulkan-dev di Ubuntu dichiara Breaks su vulkan-headers: si sostituisce l'intero trio)
+          wget -q https://packages.lunarg.com/vulkan/pool/main/v/vulkan-loader/libvulkan1_1.4.313.0~rc1-1lunarg22.04-1_amd64.deb -O /tmp/libvulkan1.deb
+          wget -q https://packages.lunarg.com/vulkan/pool/main/v/vulkan-loader/libvulkan-dev_1.4.313.0~rc1-1lunarg22.04-1_amd64.deb -O /tmp/libvulkan-dev.deb
+          wget -q https://packages.lunarg.com/vulkan/pool/main/v/vulkan-headers/vulkan-headers_1.4.313.0~rc1-1lunarg22.04-1_all.deb -O /tmp/vulkan-headers.deb
           wget -q https://packages.lunarg.com/vulkan/pool/main/s/shaderc/shaderc_2025.2~rc1-1lunarg22.04-1_amd64.deb -O /tmp/shaderc.deb
-          sudo dpkg -i /tmp/shaderc.deb
+          sudo dpkg -i /tmp/libvulkan1.deb /tmp/libvulkan-dev.deb /tmp/vulkan-headers.deb /tmp/shaderc.deb
 
       - name: Setup Python
         uses: actions/setup-python@v5
