@@ -1,6 +1,9 @@
 import os
 import logging
+import ssl
 import urllib.request
+
+import certifi
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +112,20 @@ class ModelManager:
                     percent = min(100, int((downloaded / total_size) * 100))
                     progress_callback(percent)
 
-            urllib.request.urlretrieve(url, model_path, reporthook)
+            context = ssl.create_default_context(cafile=certifi.where())
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req, context=context) as resp:
+                total_size = int(resp.headers.get("Content-Length") or 0)
+                block_size = 64 * 1024
+                block_num = 0
+                with open(model_path, "wb") as out:
+                    while True:
+                        chunk = resp.read(block_size)
+                        if not chunk:
+                            break
+                        out.write(chunk)
+                        reporthook(block_num, block_size, total_size)
+                        block_num += 1
 
             if log_callback:
                 log_callback(f"Download completato.")
