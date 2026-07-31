@@ -182,8 +182,11 @@ class ProcessingService(QObject):
                 link=params['file_path'],
                 input_folder=self.config_manager.get("input_dir"),
                 name=params['name'],
+                mode=params.get('yt_mode', 'audio'),
             )
             success, result = self.yt_manager.run(progress_callback=self.progress_signal.emit)
+            if success and params.get('yt_mode') == 'video':
+                self._video_source = result
             return result if success else None
         else:
             p = params['file_path']

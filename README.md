@@ -25,6 +25,7 @@
 *   **Intuitive User Interface**: A clean and easy-to-use interface built with PyQt6.
 *   **Customizable Output**: Get your transcriptions in SRT format.
 *   **Subtitle Integration**: Embed the generated subtitles directly into the video as a soft track (`*_subs.mp4`) or burned into the image (`*_burned.mp4`).
+*   **Flexible YouTube Downloads**: Choose between audio-only or full audio+video download.
 *   **Configurability**: Adjust settings like the output directory and Docker details via a configuration file.
 
 ## 🚀 Getting Started
@@ -118,7 +119,8 @@ This is the easiest way to use the tool.
 4.  **Adjust Whisper settings**: Select the model, language, and task (transcribe or translate).
 5.  **Open the settings (gear icon)** to choose the execution mode (Native or Docker).
 6.  **Optional - Integrate subtitles into the video**: Use the "Sottotitoli nel video" dropdown to embed the generated SRT as a soft track (MP4/MKV, toggleable in the player) or burned into the image (MP4). This requires the SRT format and a video source (local video file or YouTube in "Audio + Video" mode).
-7.  **Click "Start Process"** to begin! Progress will be displayed in the GUI.
+7.  **Optional - YouTube download mode**: Choose "Solo Audio" (default, audio-only download) or "Audio + Video" (full video download, required for subtitle integration).
+8.  **Click "Start Process"** to begin! Progress will be displayed in the GUI.
 
 ### ⌨️ Command-Line Interface (CLI)
 
@@ -140,6 +142,7 @@ For automation or headless environments, two CLI scripts are available.
     ```bash
     python main.py --cli -f video.mp4 --subs soft   # traccia soft (MP4/MKV)
     python main.py --cli -f video.mp4 --subs burn   # sottotitoli incisi (MP4)
+    python main.py --cli -f https://youtube.com/... --subs soft --yt-mode video
     ```
 
 ## 📂 Project Structure

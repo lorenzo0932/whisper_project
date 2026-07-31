@@ -79,6 +79,17 @@ class MainWindow(QWidget):
         output_dir_layout.addWidget(self.output_dir_entry)
         output_dir_layout.addWidget(self.browse_output_dir_button)
         source_layout.addLayout(output_dir_layout)
+
+        yt_layout = QHBoxLayout()
+        yt_layout.addWidget(QLabel("Download YouTube:"))
+        self.yt_mode_combo = QComboBox()
+        self.yt_mode_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.yt_mode_combo.addItem("Solo Audio", "audio")
+        self.yt_mode_combo.addItem("Audio + Video", "video")
+        self._set_combo_dropdown_width(self.yt_mode_combo)
+        yt_layout.addWidget(self.yt_mode_combo)
+        yt_layout.addStretch()
+        source_layout.addLayout(yt_layout)
         
         whisper_group = QGroupBox("Impostazioni Whisper")
         whisper_layout = QVBoxLayout(whisper_group)
@@ -328,6 +339,11 @@ class MainWindow(QWidget):
         self.output_dir_entry.setPlaceholderText(f"Default: {default_output_dir}")
         self.output_dir_entry.setText(current_output_dir if current_output_dir != default_output_dir else "")
 
+        yt_mode = self.config_manager.get("yt_mode", "audio")
+        idx = self.yt_mode_combo.findData(yt_mode)
+        if idx >= 0:
+            self.yt_mode_combo.setCurrentIndex(idx)
+
         subs_mode = self.config_manager.get("subs_mode", "none")
         idx = self.subs_mode_combo.findData(subs_mode)
         if idx >= 0:
@@ -351,6 +367,7 @@ class MainWindow(QWidget):
         self.config_manager.set("model_index", model_index)
         self.config_manager.set("output_format", self.output_format_combo.currentText())
         self.config_manager.set("output_dir", self.output_dir_entry.text())
+        self.config_manager.set("yt_mode", self.yt_mode_combo.currentData())
         self.config_manager.set("subs_mode", self.subs_mode_combo.currentData())
 
         subs_mode = self.subs_mode_combo.currentData()
@@ -363,6 +380,9 @@ class MainWindow(QWidget):
                 QMessageBox.warning(self, "Input non compatibile",
                                     "Per integrare i sottotitoli serve un video (File Video o YouTube).")
                 return
+            if self.radio_youtube.isChecked() and self.yt_mode_combo.currentData() != "video":
+                self.yt_mode_combo.setCurrentIndex(self.yt_mode_combo.findData("video"))
+                self.log_output("Download YouTube impostato su 'Audio + Video' per i sottotitoli.")
 
         params = {
             "input_type": input_type,
@@ -373,6 +393,7 @@ class MainWindow(QWidget):
             "task": "translate" if self.radio_task_translate.isChecked() else "transcribe",
             "output_format": self.output_format_combo.currentText(),
             "output_dir": self.output_dir_entry.text(),
+            "yt_mode": self.yt_mode_combo.currentData(),
             "subs_mode": subs_mode
         }
         
@@ -449,6 +470,7 @@ class MainWindow(QWidget):
     def update_browse_button_state(self):
         is_youtube = self.radio_youtube.isChecked()
         self.browse_button.setEnabled(not is_youtube)
+        self.yt_mode_combo.setEnabled(is_youtube)
         self.subs_mode_combo.setEnabled(not self.radio_audio.isChecked())
 
     def show_file_dialog(self):

@@ -26,6 +26,7 @@ def run_cli(args, config):
         "task": args.task or config.get("task"),
         "output_format": args.format or config.get("output_format"),
         "output_dir": args.output_dir or config.get("output_dir"),
+        "yt_mode": args.yt_mode or config.get("yt_mode", "audio"),
         "subs_mode": args.subs or config.get("subs_mode", "none")
     }
 
@@ -64,6 +65,8 @@ if __name__ == '__main__':
     parser.add_argument("-format", "--format", type=str, choices=['srt', 'vtt', 'txt', 'json'], help="Formato")
     parser.add_argument("--subs", type=str, choices=['none', 'soft', 'burn'], default='none',
                         help="Integra i sottotitoli nel video (soft = traccia, burn = incisi)")
+    parser.add_argument("--yt-mode", type=str, choices=['audio', 'video'], default=None,
+                        help="Modalità download YouTube: solo audio o audio+video")
 
     args = parser.parse_args()
 
