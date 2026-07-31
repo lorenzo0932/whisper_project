@@ -16,6 +16,7 @@ Flag:
 """
 
 import argparse
+import glob
 import os
 import shutil
 import subprocess
@@ -324,7 +325,10 @@ def package_windows():
         import zipfile
         with zipfile.ZipFile(zpath) as zf:
             zf.extractall(os.path.join(CACHE_DIR, "nsis"))
-        makensis = os.path.join(CACHE_DIR, "nsis", "makensis.exe")
+        found = glob.glob(os.path.join(CACHE_DIR, "nsis", "**", "makensis.exe"), recursive=True)
+        if not found:
+            raise RuntimeError("makensis.exe non trovato dopo l'estrazione di NSIS")
+        makensis = found[0]
 
     nsi = os.path.join(ROOT, "installer", "windows", "whispergui.nsi")
     output = os.path.join(out_dir, "WhisperGUI-x86_64-setup.exe")
