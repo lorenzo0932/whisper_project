@@ -18,8 +18,13 @@ Unicode true
 !define APP_NAME "WhisperGUI"
 !define APP_EXE "WhisperGUI.exe"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\WhisperGUI"
-!define HWND_BROADCAST 0xFFFF
-!define WM_SETTINGCHANGE 0x001A
+; HWND_BROADCAST e' gia' definito da NSIS 3.x: guardia per evitare redefine
+!ifndef HWND_BROADCAST
+  !define HWND_BROADCAST 0xFFFF
+!endif
+!ifndef WM_SETTINGCHANGE
+  !define WM_SETTINGCHANGE 0x001A
+!endif
 
 Name "${APP_NAME}"
 OutFile "${OUT_FILE}"
