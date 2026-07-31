@@ -24,6 +24,7 @@
 *   **Accelerated Transcription**: Option to use `insanely-fast-whisper` in Docker mode for significantly faster processing.
 *   **Intuitive User Interface**: A clean and easy-to-use interface built with PyQt6.
 *   **Customizable Output**: Get your transcriptions in SRT format.
+*   **Subtitle Integration**: Embed the generated subtitles directly into the video as a soft track (`*_subs.mp4`) or burned into the image (`*_burned.mp4`).
 *   **Configurability**: Adjust settings like the output directory and Docker details via a configuration file.
 
 ## 🚀 Getting Started
@@ -116,7 +117,8 @@ This is the easiest way to use the tool.
 3.  **Provide an output file name.** If left blank, a default name will be used.
 4.  **Adjust Whisper settings**: Select the model, language, and task (transcribe or translate).
 5.  **Open the settings (gear icon)** to choose the execution mode (Native or Docker).
-6.  **Click "Start Process"** to begin! Progress will be displayed in the GUI.
+6.  **Optional - Integrate subtitles into the video**: Use the "Sottotitoli nel video" dropdown to embed the generated SRT as a soft track (MP4/MKV, toggleable in the player) or burned into the image (MP4). This requires the SRT format and a video source (local video file or YouTube in "Audio + Video" mode).
+7.  **Click "Start Process"** to begin! Progress will be displayed in the GUI.
 
 ### ⌨️ Command-Line Interface (CLI)
 
@@ -133,6 +135,12 @@ For automation or headless environments, two CLI scripts are available.
     python main_cli_fast.py
     ```
     Similar to the standard CLI, but it uses the optimized script for faster processing.
+
+*   **CLI with subtitle integration:**
+    ```bash
+    python main.py --cli -f video.mp4 --subs soft   # traccia soft (MP4/MKV)
+    python main.py --cli -f video.mp4 --subs burn   # sottotitoli incisi (MP4)
+    ```
 
 ## 📂 Project Structure
 

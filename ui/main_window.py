@@ -3,7 +3,7 @@ import os
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QRadioButton, QPushButton, QTextEdit, QButtonGroup, QFileDialog, QMessageBox,
-    QGroupBox, QComboBox, QProgressBar, QToolButton, QFrame
+    QGroupBox, QComboBox, QProgressBar, QToolButton, QFrame, QCheckBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal, QSize, QRect, QEvent
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor
@@ -140,6 +140,18 @@ class MainWindow(QWidget):
         self.output_format_combo.setCurrentText("srt") 
         output_format_layout.addWidget(self.output_format_combo)
         whisper_layout.addLayout(output_format_layout)
+
+        subs_layout = QHBoxLayout()
+        subs_layout.addWidget(QLabel("Sottotitoli nel video:"))
+        self.subs_mode_combo = QComboBox()
+        self.subs_mode_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+        self.subs_mode_combo.addItem("Nessuno", "none")
+        self.subs_mode_combo.addItem("Traccia (soft)", "soft")
+        self.subs_mode_combo.addItem("Incisi (hard)", "burn")
+        self._set_combo_dropdown_width(self.subs_mode_combo)
+        subs_layout.addWidget(self.subs_mode_combo)
+        subs_layout.addStretch()
+        whisper_layout.addLayout(subs_layout)
 
         task_layout = QHBoxLayout()
         task_layout.addWidget(QLabel("Task:"))
@@ -316,6 +328,11 @@ class MainWindow(QWidget):
         self.output_dir_entry.setPlaceholderText(f"Default: {default_output_dir}")
         self.output_dir_entry.setText(current_output_dir if current_output_dir != default_output_dir else "")
 
+        subs_mode = self.config_manager.get("subs_mode", "none")
+        idx = self.subs_mode_combo.findData(subs_mode)
+        if idx >= 0:
+            self.subs_mode_combo.setCurrentIndex(idx)
+
     def run_process(self):
         if self.radio_youtube.isChecked():
             input_type = "youtube"
@@ -334,6 +351,18 @@ class MainWindow(QWidget):
         self.config_manager.set("model_index", model_index)
         self.config_manager.set("output_format", self.output_format_combo.currentText())
         self.config_manager.set("output_dir", self.output_dir_entry.text())
+        self.config_manager.set("subs_mode", self.subs_mode_combo.currentData())
+
+        subs_mode = self.subs_mode_combo.currentData()
+        if subs_mode != "none":
+            if self.output_format_combo.currentText() not in ("srt", "all"):
+                QMessageBox.warning(self, "Formato non compatibile",
+                                    "I sottotitoli richiedono il formato SRT (o 'all').")
+                return
+            if self.radio_audio.isChecked():
+                QMessageBox.warning(self, "Input non compatibile",
+                                    "Per integrare i sottotitoli serve un video (File Video o YouTube).")
+                return
 
         params = {
             "input_type": input_type,
@@ -343,7 +372,8 @@ class MainWindow(QWidget):
             "language": self.language_combo.currentText(),
             "task": "translate" if self.radio_task_translate.isChecked() else "transcribe",
             "output_format": self.output_format_combo.currentText(),
-            "output_dir": self.output_dir_entry.text()
+            "output_dir": self.output_dir_entry.text(),
+            "subs_mode": subs_mode
         }
         
         if not params["file_path"]:
@@ -416,8 +446,10 @@ class MainWindow(QWidget):
         dialog.exec()
         self.load_settings() 
 
-    def update_browse_button_state(self): 
-        self.browse_button.setEnabled(not self.radio_youtube.isChecked())
+    def update_browse_button_state(self):
+        is_youtube = self.radio_youtube.isChecked()
+        self.browse_button.setEnabled(not is_youtube)
+        self.subs_mode_combo.setEnabled(not self.radio_audio.isChecked())
 
     def show_file_dialog(self):
         if self.radio_audio.isChecked(): 
