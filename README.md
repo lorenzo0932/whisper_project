@@ -69,9 +69,10 @@ Download the artifact for your platform from the latest GitHub release:
 *   **Linux** — `WhisperGUI-x86_64.AppImage`:
     ```bash
     # Double-click, or "managed" installation (extraction + application menu):
-    curl -sL https://raw.githubusercontent.com/lorenzo0932/whisper_project/main/installer/linux/install.sh | bash
+    curl -sL https://raw.githubusercontent.com/lorenzo0932/whisper_project/dev/installer/linux/install.sh | bash
     # Launch with: whisper-gui
     ```
+    If double-clicking the AppImage does nothing, install `libfuse2` (or use the managed installation above, which does not require FUSE).
 
 No Python or FFmpeg installation is required: the app bundles its own static binaries. Models are downloaded automatically on first use into the per-user cache directory (`~/.cache/WhisperGUI/models` on Linux, `~/Library/Caches/WhisperGUI/models` on macOS, `%LOCALAPPDATA%\WhisperGUI\cache\models` on Windows).
 

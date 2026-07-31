@@ -6,8 +6,8 @@ IMG_NAME="${APP_NAME}-x86_64.AppImage"
 DEST="$HOME/.local/bin/whisper-gui"
 APP_DIR="$HOME/.local/lib/whisper-gui"
 DESKTOP="$HOME/.local/share/applications/whisper-gui.desktop"
-ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
-ICON_DEST="$ICON_DIR/whisper-gui.svg"
+ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
+ICON_DEST="$ICON_DIR/whisper-gui.png"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
@@ -55,7 +55,11 @@ if [ -z "$APPIMAGE" ] || [ ! -f "$APPIMAGE" ]; then
         echo "Errore: download fallito da $APPIMAGE_URL"
         exit 1
     fi
+    chmod +x "$APPIMAGE"
 fi
+
+# Path assoluto: dopo l'estrazione cambiamo directory di lavoro
+APPIMAGE="$(realpath "$APPIMAGE")"
 
 echo "Installa WhisperGUI da: $APPIMAGE"
 
@@ -68,10 +72,22 @@ cd "$TMP_EXTRACT"
     exit 1
 }
 
-mkdir -p "$HOME/.local/bin"
+mkdir -p "$HOME/.local/bin" "$(dirname "$DESKTOP")"
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR"
 cp -r "$TMP_EXTRACT/squashfs-root/." "$APP_DIR/"
+
+# Icona: dall'AppImage estratta (funziona anche con curl | bash), fallback all'SVG dal repo
+ICON_SRC="$TMP_EXTRACT/squashfs-root/whisper-gui.png"
+ICON_FALLBACK="$ROOT_DIR/icon/ai_studio_code.svg"
+
+mkdir -p "$ICON_DIR"
+if [ -f "$ICON_SRC" ]; then
+    cp "$ICON_SRC" "$ICON_DEST"
+elif [ -f "$ICON_FALLBACK" ]; then
+    cp "$ICON_FALLBACK" "$ICON_DEST"
+fi
+
 rm -rf "$TMP_EXTRACT"
 
 cat > "$DEST" <<EOF
@@ -79,14 +95,6 @@ cat > "$DEST" <<EOF
 exec "$APP_DIR/$APP_NAME" "\$@"
 EOF
 chmod 755 "$DEST"
-
-# Icona
-ICON_SRC="$ROOT_DIR/icon/ai_studio_code.svg"
-
-mkdir -p "$ICON_DIR"
-if [ -f "$ICON_SRC" ]; then
-    cp "$ICON_SRC" "$ICON_DEST"
-fi
 
 cat > "$DESKTOP" << EOF
 [Desktop Entry]
