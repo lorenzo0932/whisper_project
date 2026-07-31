@@ -77,7 +77,6 @@ def bootstrap(args):
         run([python, "-m", "venv", venv])
     python = venv_python()
     pip_install(python, "-r", os.path.join(ROOT, "requirements.txt"))
-    pip_install(python, "cairosvg", "pillow")
     log("Bootstrap completato.")
 
 
@@ -218,10 +217,9 @@ def package_linux():
     shutil.copytree(os.path.join(DIST_DIR, APP_NAME), appdir)
 
     python = venv_python()
-    run([python, "-c",
-         "import cairosvg; cairosvg.svg2png("
-         "url='icon/ai_studio_code.svg', write_to='/tmp/whisper-gui.png', "
-         "output_width=256, output_height=256)"], cwd=ROOT)
+    run([python, os.path.join(ROOT, "scripts", "icon_gen.py"), "png",
+         os.path.join(ROOT, "icon", "ai_studio_code.svg"),
+         "/tmp/whisper-gui.png", "256"])
     shutil.copy2("/tmp/whisper-gui.png", os.path.join(appdir, "whisper-gui.png"))
 
     with open(os.path.join(appdir, "AppRun"), "w") as f:
@@ -271,17 +269,10 @@ def package_macos():
             shutil.copy2(item_src, macos_dir)
 
     python = venv_python()
-    run([python, "-c", "\n".join([
-        "import cairosvg, os",
-        "from PIL import Image",
-        "cairosvg.svg2png(url='icon/ai_studio_code.svg', write_to='/tmp/icon_large.png', output_width=1024, output_height=1024)",
-        "os.makedirs('/tmp/icon.iconset', exist_ok=True)",
-        "img = Image.open('/tmp/icon_large.png')",
-        "for px, label in [(16,'16'),(32,'32'),(64,'64'),(128,'128'),(256,'256'),(512,'512')]:",
-        "    img.resize((px, px), Image.LANCZOS).save('/tmp/icon.iconset/icon_'+label+'x'+label+'.png')",
-        "    img.resize((px*2, px*2), Image.LANCZOS).save('/tmp/icon.iconset/icon_'+label+'x'+label+'@2x.png')",
-    ])], cwd=ROOT)
-    run(["iconutil", "-c", "icns", "/tmp/icon.iconset",
+    iconset = "/tmp/icon.iconset"
+    run([python, os.path.join(ROOT, "scripts", "icon_gen.py"), "iconset",
+         os.path.join(ROOT, "icon", "ai_studio_code.svg"), iconset])
+    run(["iconutil", "-c", "icns", iconset,
          "-o", os.path.join(res_dir, "icon.icns")])
 
     with open(os.path.join(app, "Contents", "Info.plist"), "w") as f:
