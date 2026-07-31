@@ -17,11 +17,25 @@ on:
     tags: ['v*']
 
 jobs:
+  validate:
+    name: Fail-Fast Validation
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Validate Syntax (Python & Bash)
+        run: |
+          echo "Verifica sintassi Python (compileall)..."
+          python -m compileall -q .
+          echo "Verifica sintassi script Bash (se presenti)..."
+          if [ -d "scripts" ]; then find scripts -name "*.sh" -exec bash -n {} +; fi
+
   build-linux:
-    if: |
-      github.event_name == 'push' ||
-      inputs.os == 'all' ||
-      inputs.os == 'linux'
+    needs: validate
+    if: github.event_name == 'push' || inputs.os == 'all' || inputs.os == 'linux'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -29,7 +43,8 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq cmake build-essential libvulkan-dev
+          # spirv-headers (jammy-updates) fornisce SPIRV-HeadersConfig.cmake richiesto da ggml-vulkan
+          sudo apt-get install -y -qq cmake build-essential libvulkan-dev spirv-headers
           wget -q https://packages.lunarg.com/vulkan/pool/main/s/shaderc/shaderc_2025.2~rc1-1lunarg22.04-1_amd64.deb -O /tmp/shaderc.deb
           sudo dpkg -i /tmp/shaderc.deb
 
@@ -37,12 +52,32 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
+
+      - name: Cache Downloads (build/cache)
+        uses: actions/cache@v4
+        with:
+          path: build/cache
+          key: downloads-linux-${{ hashFiles('build.py') }}
+
+      - name: Cache Engine (bin)
+        id: cache-engine
+        uses: actions/cache@v4
+        with:
+          path: bin
+          key: engine-linux-${{ hashFiles('build.py') }}
 
       - name: Bootstrap
         run: python3 build.py bootstrap
 
       - name: Build whisper.cpp (Vulkan) + ffmpeg
-        run: python3 build.py build-engine
+        run: |
+          if [ "${{ steps.cache-engine.outputs.cache-hit }}" = "true" ]; then
+            python3 build.py build-engine --skip-engine
+          else
+            python3 build.py build-engine
+          fi
 
       - name: Build executable (PyInstaller onedir)
         run: python3 build.py build
@@ -57,10 +92,8 @@ jobs:
           files: installer/linux/output/WhisperGUI-x86_64.AppImage
 
   build-macos:
-    if: |
-      github.event_name == 'push' ||
-      inputs.os == 'all' ||
-      inputs.os == 'macos'
+    needs: validate
+    if: github.event_name == 'push' || inputs.os == 'all' || inputs.os == 'macos'
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -69,12 +102,32 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
+
+      - name: Cache Downloads (build/cache)
+        uses: actions/cache@v4
+        with:
+          path: build/cache
+          key: downloads-macos-${{ hashFiles('build.py') }}
+
+      - name: Cache Engine (bin)
+        id: cache-engine
+        uses: actions/cache@v4
+        with:
+          path: bin
+          key: engine-macos-${{ hashFiles('build.py') }}
 
       - name: Bootstrap
         run: python3 build.py bootstrap
 
       - name: Build whisper.cpp (Metal + CoreML) + ffmpeg arm64
-        run: python3 build.py build-engine
+        run: |
+          if [ "${{ steps.cache-engine.outputs.cache-hit }}" = "true" ]; then
+            python3 build.py build-engine --skip-engine
+          else
+            python3 build.py build-engine
+          fi
 
       - name: Build executable (PyInstaller onedir)
         run: python3 build.py build
@@ -89,10 +142,8 @@ jobs:
           files: installer/macos/output/WhisperGUI-macOS-arm64.dmg
 
   build-windows:
-    if: |
-      github.event_name == 'push' ||
-      inputs.os == 'all' ||
-      inputs.os == 'windows'
+    needs: validate
+    if: github.event_name == 'push' || inputs.os == 'all' || inputs.os == 'windows'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -101,6 +152,21 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
+
+      - name: Cache Downloads (build/cache)
+        uses: actions/cache@v4
+        with:
+          path: build/cache
+          key: downloads-windows-${{ hashFiles('build.py') }}
+
+      - name: Cache Engine (bin)
+        id: cache-engine
+        uses: actions/cache@v4
+        with:
+          path: bin
+          key: engine-windows-${{ hashFiles('build.py') }}
 
       - name: Install Vulkan SDK (glslc)
         shell: pwsh
@@ -117,7 +183,12 @@ jobs:
 
       - name: Build whisper.cpp (Vulkan) + ffmpeg
         shell: pwsh
-        run: python build.py build-engine
+        run: |
+          if ('${{ steps.cache-engine.outputs.cache-hit }}' -eq 'true') {
+            python build.py build-engine --skip-engine
+          } else {
+            python build.py build-engine
+          }
 
       - name: Build executable (PyInstaller onedir)
         shell: pwsh

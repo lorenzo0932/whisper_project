@@ -103,6 +103,7 @@ def ensure_whispercpp_source():
 def build_engine(args):
     if args.skip_engine and os.path.exists(os.path.join(BIN_DIR, WHISPER_CLI)):
         log("--skip-engine: uso i binari gia' presenti in bin/.")
+        ensure_ffmpeg()
         return
 
     os.makedirs(BIN_DIR, exist_ok=True)
