@@ -76,6 +76,22 @@ Download the artifact for your platform from the latest GitHub release:
 
 No Python or FFmpeg installation is required: the app bundles its own static binaries. Models are downloaded automatically on first use into the per-user cache directory (`~/.cache/WhisperGUI/models` on Linux, `~/Library/Caches/WhisperGUI/models` on macOS, `%LOCALAPPDATA%\WhisperGUI\cache\models` on Windows).
 
+#### Uninstallation
+
+The model cache is never removed by uninstallers (it is reusable on reinstall); delete it manually if you want it gone.
+
+*   **Windows** — Settings → Apps → WhisperGUI → Uninstall (or run `uninstall.exe` inside `%LOCALAPPDATA%\WhisperGUI`).
+*   **macOS** — drag `WhisperGUI.app` from the Applications folder to the Trash. Optional: remove the cache with `rm -rf ~/Library/Caches/WhisperGUI`.
+*   **Linux** — there is no default uninstaller; use the same command you installed with (also works without a repo clone):
+    ```bash
+    curl -sL https://raw.githubusercontent.com/lorenzo0932/whisper_project/dev/installer/linux/install.sh | bash -s -- --uninstall
+    # Alternatively, remove the files manually:
+    rm -rf ~/.local/lib/whisper-gui
+    rm -f ~/.local/bin/whisper-gui ~/.local/share/applications/whisper-gui.desktop ~/.local/share/icons/hicolor/256x256/apps/whisper-gui.png
+    # Optional: remove the model cache:
+    rm -rf ~/.cache/WhisperGUI
+    ```
+
 #### Developers
 
 The build pipeline is unified in `build.py` (same commands on every OS, also used by the CI):
