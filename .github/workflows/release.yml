@@ -29,7 +29,11 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq cmake build-essential libvulkan-dev glslang-tools
+          sudo apt-get install -y -qq gnupg
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | gpg --dearmor | sudo tee /usr/share/keyrings/lunarg.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/lunarg.gpg] https://packages.lunarg.com/vulkan jammy main" | sudo tee /etc/apt/sources.list.d/lunarg-vulkan.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cmake build-essential libvulkan-dev shaderc
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -97,6 +101,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+
+      - name: Install Vulkan SDK (glslc)
+        shell: pwsh
+        run: |
+          choco install vulkan-sdk -y --no-progress
+          $sdk = Get-ChildItem 'C:\VulkanSDK' -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $sdk) { throw 'Vulkan SDK non installato' }
+          echo "VULKAN_SDK=$($sdk.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "$($sdk.FullName)\Bin" | Out-File -FilePath $env:GITHUB_PATH -Append
 
       - name: Bootstrap
         shell: pwsh

@@ -47,7 +47,16 @@ def log(msg):
 
 def run(cmd, cwd=None, check=True):
     log("$ " + " ".join(cmd))
-    return subprocess.run(cmd, cwd=cwd, check=check)
+    try:
+        return subprocess.run(cmd, cwd=cwd, check=check, capture_output=True, text=True)
+    except subprocess.CalledProcessError as e:
+        if e.stderr:
+            print("--- stderr ---")
+            print(e.stderr.strip()[-2000:])
+        if e.stdout:
+            print("--- stdout (tail) ---")
+            print(e.stdout.strip()[-2000:])
+        raise
 
 
 def venv_python():
@@ -291,7 +300,10 @@ def package_macos():
             "</dict>\n</plist>\n"
         )
 
-    run(["codesign", "--force", "--deep", "--sign", "-", app])
+    # Niente codesign del bundle: la firma ad-hoc non abilita alcun vantaggio
+    # (l'app non e' notarizzata) e rende il packaging fragile in CI.
+    # Gli eseguibili interni (whisper-cli, ffmpeg) sono gia' firmati ad-hoc
+    # da build-engine per poter girare su Apple Silicon.
 
     dmg = os.path.join(out_dir, "WhisperGUI-macOS-arm64.dmg")
     if os.path.exists(dmg):
