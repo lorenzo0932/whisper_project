@@ -15,7 +15,8 @@ dev (base)
 ├── fix/whispercpp-manager     → core/whispercpp_manager.py: GGUF, fix
 ├── fix/processing-service     → services/processing_service.py: thread safety
 ├── feat/gui-model-selector    → ui/main_window.py: combo box categorie
-└── feat/ci-cd-release         → .github/workflows/release.yml + installer
+├── feat/ci-cd-release         → .github/workflows/release.yml + installer
+└── feat/installer-standardization → build.py + installers per-OS (in corso)
 ```
 
 Ogni branch parte da `dev`, merge in `dev` via PR dopo implementazione.
@@ -27,16 +28,17 @@ Ogni branch parte da `dev`, merge in `dev` via PR dopo implementazione.
 ```
 whisper_project/
 ├── main.py                       # Entry point GUI + CLI
-├── requirements.txt              # PyQt6, yt-dlp, platformdirs
+├── build.py                      # Pipeline build cross-platform (bootstrap/engine/build/package/install)
+├── requirements.txt              # PyQt6, yt-dlp, platformdirs, pyinstaller
 ├── ROADMAP.md
 ├── core/
 │   ├── __init__.py
-│   ├── whisper_manager.py        # whisper.cpp subprocess (Vulkan/CPU)
-│   ├── youtube_manager.py        # yt-dlp download YouTube
+│   ├── whispercpp_manager.py     # whisper.cpp subprocess (Vulkan/Metal/CPU)
+│   ├── youtube_manager.py        # yt-dlp download YouTube (audio o audio+video)
 │   └── model_manager.py          # Download/gestione modelli GGUF
 ├── services/
 │   ├── __init__.py
-│   └── processing_service.py     # Orchestratore (input → audio → whisper)
+│   └── processing_service.py     # Orchestratore (input → audio → whisper → sottotitoli)
 ├── ui/
 │   ├── __init__.py
 │   ├── main_window.py            # Finestra principale PyQt6
@@ -44,21 +46,21 @@ whisper_project/
 ├── utils/
 │   ├── __init__.py
 │   ├── config_manager.py         # Path OS-standard (platformdirs)
-│   ├── audio_utils.py            # ffprobe/ffmpeg utilities
+│   ├── resource_path.py          # Path risorse bundle (PyInstaller) + .exe suffix
+│   ├── audio_utils.py            # ffprobe/ffmpeg + embed/burn sottotitoli
 │   └── ytdlp_loader.py           # Import wrapper per yt_dlp
-├── bin/
-│   └── whisper-cli               # Compilato per ogni piattaforma
+├── bin/                          # whisper-cli + ffmpeg/ffprobe (per piattaforma)
 ├── media/                        # GIF, icone
 ├── installer/
 │   ├── linux/
-│   │   └── install.sh            # AppImage → ~/.local/bin + .desktop
+│   │   └── install.sh            # AppImage → ~/.local/lib + wrapper + .desktop
 │   ├── macos/
-│   │   └── make-dmg.sh           # .app → .dmg
+│   │   └── install.sh            # DMG → /Applications + symlink CLI
 │   └── windows/
-│       └── make-installer.ps1    # NSIS exe installer
+│       └── whispergui.nsi        # Setup NSIS (per-user, PATH opzionale)
 └── .github/
     └── workflows/
-        └── release.yml           # CI/CD multi-piattaforma
+        └── release.yml           # CI/CD multi-piattaforma (delega a build.py)
 ```
 
 ---

@@ -47,10 +47,14 @@ if [ -z "$APPIMAGE" ]; then
 fi
 
 if [ -z "$APPIMAGE" ] || [ ! -f "$APPIMAGE" ]; then
-    echo "Errore: $IMG_NAME non trovato."
-    echo "Scaricalo da: https://github.com/lorenzo0932/whisper_project/releases"
-    echo "Oppure specifica il percorso con: $0 -i <file>"
-    exit 1
+    echo "Download dell'ultima release da GitHub..."
+    APPIMAGE_URL="https://github.com/lorenzo0932/whisper_project/releases/latest/download/$IMG_NAME"
+    APPIMAGE="$(mktemp --suffix=.AppImage)"
+    if ! curl -fSL "$APPIMAGE_URL" -o "$APPIMAGE"; then
+        rm -f "$APPIMAGE"
+        echo "Errore: download fallito da $APPIMAGE_URL"
+        exit 1
+    fi
 fi
 
 echo "Installa WhisperGUI da: $APPIMAGE"

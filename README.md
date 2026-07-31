@@ -45,40 +45,34 @@ Before you begin, ensure you have the following dependencies installed on your s
 
 ### 🛠️ Installation
 
-1.  **Clone the repository:**
+#### Utente finale
+
+Scarica l'artefatto della tua piattaforma dall'ultima release su GitHub:
+
+*   **Windows** — `WhisperGUI-x86_64-setup.exe`: doppio click e segui il wizard (installa in `%LOCALAPPDATA%\WhisperGUI`, senza admin).
+*   **macOS (Apple Silicon)** — `WhisperGUI-macOS-arm64.dmg`: apri il DMG e trascina `WhisperGUI.app` nella cartella Applicazioni.
+*   **Linux** — `WhisperGUI-x86_64.AppImage`:
     ```bash
-    git clone https://github.com/your-username/your-project.git
-    cd your-project
+    # Doppio click, oppure installazione "curata" (estrazione + menu applicazioni):
+    curl -sL https://raw.githubusercontent.com/lorenzo0932/whisper_project/main/installer/linux/install.sh | bash
+    # Avvia con: whisper-gui
     ```
 
-2.  **Choose your execution mode** and install the corresponding dependencies.
+#### Sviluppatori
 
-    *   **For Native (Local) Execution:**
-        Create a virtual environment and install the required packages. Choose the `requirements.txt` file that matches your hardware.
+La pipeline di build è unificata in `build.py` (stessi comandi su tutti i sistemi, usati anche dalla CI):
 
-        ```bash
-        # Create a virtual environment
-        python -m venv venv
+```bash
+python3 build.py bootstrap      # crea .venv e installa le dipendenze
+python3 build.py build-engine   # compila whisper.cpp (Vulkan su Linux/Windows, Metal+CoreML su macOS) e scarica ffmpeg/ffprobe statici
+python3 build.py build          # impacchetta l'app (PyInstaller onedir)
+python3 build.py package        # produce l'artefatto dell'OS: AppImage / .dmg / setup.exe NSIS
+python3 build.py install        # installa localmente (Linux/macOS: ~/.local o ~/Applications; Windows: setup.exe)
+```
 
-        # Activate it
-        # Windows
-        venv\Scripts\activate
-        # macOS/Linux
-        source venv/bin/activate
-
-        # Install dependencies based on your hardware
-        # For NVIDIA GPU (CUDA)
-        pip install -r requirements-cuda.txt
-
-        # For AMD GPU (ROCM)
-        pip install -r requirements-rocm.txt
-
-        # For CPU only
-        pip install -r requirements-cpu.txt
-        ```
-
-    *   **For Docker Execution:**
-        You do not need to install Python packages locally. Just ensure the Docker daemon is running. The project is configured to use a specific Docker container named `rocm-terminal`. You can customize this in the configuration file.
+*   `--skip-engine` per usare i binari già presenti in `bin/` (niente ricompilazione).
+*   Installazione rapida da sorgente: `./install.sh` (wrapper di `build.py`).
+*   Script di installazione per-OS (anche per rimuovere): `installer/linux/install.sh`, `installer/macos/install.sh`, setup NSIS su Windows.
 
 ## ⚙️ Configuration
 
