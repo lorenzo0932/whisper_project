@@ -4,6 +4,7 @@ set -e
 APP_NAME="WhisperGUI"
 IMG_NAME="${APP_NAME}-x86_64.AppImage"
 DEST="$HOME/.local/bin/whisper-gui"
+APP_DIR="$HOME/.local/lib/whisper-gui"
 DESKTOP="$HOME/.local/share/applications/whisper-gui.desktop"
 ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
 ICON_DEST="$ICON_DIR/whisper-gui.svg"
@@ -31,6 +32,7 @@ done
 if $UNINSTALL; then
     echo "Rimozione WhisperGUI..."
     rm -f "$DEST" "$DESKTOP" "$ICON_DEST"
+    rm -rf "$APP_DIR"
     rmdir "$(dirname "$ICON_DEST")" 2>/dev/null || true
     echo "✅ WhisperGUI rimosso."
     exit 0
@@ -53,9 +55,26 @@ fi
 
 echo "Installa WhisperGUI da: $APPIMAGE"
 
+# Estrai l'AppImage senza FUSE (--appimage-extract non richiede mount)
+TMP_EXTRACT="$(mktemp -d)"
+cd "$TMP_EXTRACT"
+"$APPIMAGE" --appimage-extract >/dev/null 2>&1 || {
+    echo "Errore: estrazione AppImage fallita. File non valido?"
+    rm -rf "$TMP_EXTRACT"
+    exit 1
+}
+
 mkdir -p "$HOME/.local/bin"
-cp "$APPIMAGE" "$DEST"
-chmod +x "$DEST"
+rm -rf "$APP_DIR"
+mkdir -p "$APP_DIR"
+cp -r "$TMP_EXTRACT/squashfs-root/." "$APP_DIR/"
+rm -rf "$TMP_EXTRACT"
+
+cat > "$DEST" <<EOF
+#!/bin/bash
+exec "$APP_DIR/$APP_NAME" "\$@"
+EOF
+chmod 755 "$DEST"
 
 # Icona
 ICON_SRC="$ROOT_DIR/icon/ai_studio_code.svg"
@@ -78,7 +97,8 @@ Terminal=false
 Categories=AudioVideo;Audio;
 EOF
 
-echo "✅ WhisperGUI installato in $DEST"
+echo "✅ WhisperGUI installato in $APP_DIR"
+echo "✅ Collegamento creato in $DEST"
 echo "✅ Collegamento .desktop creato in $DESKTOP"
 echo ""
 echo "Avvia dal menu applicazioni o con: whisper-gui"

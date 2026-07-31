@@ -55,23 +55,50 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install pyinstaller PyQt6 yt-dlp platformdirs
+          pip install pyinstaller PyQt6 yt-dlp platformdirs cairosvg pillow
 
-      - name: Build executable (PyInstaller)
+      - name: Build executable (PyInstaller onedir)
         run: |
-          pyinstaller --onefile \
+          pyinstaller --onedir \
             --add-data "bin:bin" \
             --add-data "media:media" \
             --add-data "icon:icon" \
             --paths . \
             --name WhisperGUI \
             main.py
-          mv dist/WhisperGUI dist/WhisperGUI-x86_64.AppImage
+          python3 -c "
+          import cairosvg
+          cairosvg.svg2png(url='icon/ai_studio_code.svg', write_to='/tmp/whisper-gui.png', output_width=256, output_height=256)
+          "
+
+      - name: Package AppImage
+        run: |
+          mkdir -p AppDir
+          cp -r dist/WhisperGUI/. AppDir/
+          cp /tmp/whisper-gui.png AppDir/whisper-gui.png
+          printf '#!/bin/bash\nexec "\$APPDIR/WhisperGUI" "\$@"\n' > AppDir/AppRun
+          chmod +x AppDir/AppRun
+          cat > AppDir/whisper-gui.desktop <<'EOF'
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WhisperGUI
+Comment=Trascrizione AI nativa (Vulkan)
+Exec=WhisperGUI
+Icon=whisper-gui
+StartupWMClass=whisper-gui
+Terminal=false
+Categories=AudioVideo;Audio;
+EOF
+          curl -sL "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -o /tmp/appimagetool
+          chmod +x /tmp/appimagetool
+          cd /tmp
+          ./appimagetool --appimage-extract-and-run "$GITHUB_WORKSPACE/AppDir" "$GITHUB_WORKSPACE/WhisperGUI-x86_64.AppImage"
 
       - name: Create installer
         run: |
           mkdir -p installer/linux/output
-          cp dist/WhisperGUI-x86_64.AppImage installer/linux/output/
+          cp WhisperGUI-x86_64.AppImage installer/linux/output/
           chmod +x installer/linux/output/WhisperGUI-x86_64.AppImage
 
       - name: Upload Release Asset

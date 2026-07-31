@@ -4,6 +4,7 @@ set -e
 APP_NAME="WhisperGUI"
 EXEC_NAME="whisper-gui"
 BIN_DEST="$HOME/.local/bin/$EXEC_NAME"
+APP_DIR="$HOME/.local/lib/$EXEC_NAME"
 PROJECT_DIR=$(pwd)
 ICON_SRC="$PROJECT_DIR/icon/ai_studio_code.svg"
 ICON_DEST="$HOME/.local/share/icons/hicolor/scalable/apps/whisper-gui.svg"
@@ -37,8 +38,8 @@ if [ ! -f "bin/ffmpeg" ] || [ ! -f "bin/ffprobe" ]; then
 fi
 
 # 4. Build
-echo "[4/6] Build eseguibile (PyInstaller)..."
-pyinstaller --onefile \
+echo "[4/6] Build eseguibile (PyInstaller onedir)..."
+pyinstaller --onedir \
     --add-data "bin:bin" \
     --add-data "media:media" \
     --add-data "icon:icon" \
@@ -47,9 +48,16 @@ pyinstaller --onefile \
     main.py
 
 # 5. Installazione
-echo "[5/6] Installazione in $BIN_DEST..."
+echo "[5/6] Installazione in $APP_DIR..."
 mkdir -p "$HOME/.local/bin"
-cp "dist/$APP_NAME" "$BIN_DEST"
+rm -rf "$APP_DIR"
+mkdir -p "$APP_DIR"
+cp -r "dist/$APP_NAME/." "$APP_DIR/"
+
+cat > "$BIN_DEST" <<EOF
+#!/bin/bash
+exec "$APP_DIR/$APP_NAME" "\$@"
+EOF
 chmod 755 "$BIN_DEST"
 
 # 6. Integrazione Sistema
