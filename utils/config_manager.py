@@ -27,7 +27,9 @@ class ConfigManager:
             "output_dir": str(Path.home() / "Documents" / "WhisperGUI"),
             "model_category": "desktop",
             "model_index": 0,
-            "model": "large-v3-turbo-q5_0"
+            "model": "large-v3-turbo-q5_0",
+            "yt_mode": "audio",
+            "subs_mode": "none"
         }
 
     def _load_config(self):

@@ -14,3 +14,4 @@ models/
 *.spec
 *.tar
 nuitka-crash-report.xml
+speech_video.mp4

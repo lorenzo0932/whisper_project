@@ -11,15 +11,23 @@ from services.processing_service import ProcessingService
 
 def run_cli(args, config):
     # Setup dei parametri CLI con i default della nostra app
+    is_youtube = args.file.startswith(("http", "www"))
+    if not is_youtube and os.path.splitext(args.file)[1].lower() in (".mp4", ".mkv", ".avi", ".mov", ".webm", ".m4v"):
+        input_type = "video"
+    else:
+        input_type = "youtube" if is_youtube else "audio"
+
     params = {
-        "input_type": "youtube" if args.file.startswith(("http", "www")) else "audio",
+        "input_type": input_type,
         "name": args.name or "output_cli",
         "file_path": args.file,
         "model": args.model or config.get("model"),
         "language": args.language or config.get("language"),
         "task": args.task or config.get("task"),
         "output_format": args.format or config.get("output_format"),
-        "output_dir": args.output_dir or config.get("output_dir")
+        "output_dir": args.output_dir or config.get("output_dir"),
+        "yt_mode": args.yt_mode or config.get("yt_mode", "audio"),
+        "subs_mode": args.subs or config.get("subs_mode", "none")
     }
 
     # Per far funzionare i segnali di ProcessingService serve un'istanza di QCoreApplication
@@ -55,6 +63,10 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--output-dir", type=str, help="Cartella di output")
     parser.add_argument("-n", "--name", type=str, help="Nome file di output")
     parser.add_argument("-format", "--format", type=str, choices=['srt', 'vtt', 'txt', 'json'], help="Formato")
+    parser.add_argument("--subs", type=str, choices=['none', 'soft', 'burn'], default='none',
+                        help="Integra i sottotitoli nel video (soft = traccia, burn = incisi)")
+    parser.add_argument("--yt-mode", type=str, choices=['audio', 'video'], default=None,
+                        help="Modalità download YouTube: solo audio o audio+video")
 
     args = parser.parse_args()
 

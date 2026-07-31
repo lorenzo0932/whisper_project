@@ -7,7 +7,12 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from utils.config_manager import ConfigManager
 from core.whispercpp_manager import WhisperCppManager
 from core.youtube_manager import YoutubeManager
-from utils.audio_utils import get_audio_duration, convert_to_wav_16khz
+from utils.audio_utils import (
+    get_audio_duration,
+    convert_to_wav_16khz,
+    embed_subtitles,
+    burn_subtitles
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +35,8 @@ class ProcessingService(QObject):
         self._generated_files = []
         self._output_prefix = None
         self.yt_manager = None
+        self._video_source = None
+        self._ffmpeg_processes = []
 
     def _find_bin_path(self):
         models_dir = self.config_manager.models_dir
@@ -54,7 +61,14 @@ class ProcessingService(QObject):
         self._stop_event.clear()
         self._generated_files.clear()
         self._output_prefix = None
+        self._video_source = None
         self.started_signal.emit()
+
+        subs_mode = params.get("subs_mode", "none")
+        if (subs_mode != "none" and params['input_type'] == "youtube"
+                and params.get('yt_mode', 'audio') != 'video'):
+            params['yt_mode'] = 'video'
+            self.log_signal.emit("[!] Sottotitoli richiesti: download YouTube passato a Audio+Video.")
 
         file_to_process = None
         temp_wav_file = None
@@ -148,6 +162,9 @@ class ProcessingService(QObject):
 
             if self._stop_event.is_set():
                 self._cleanup_and_finish(False, "Interrotto dall'utente.")
+            elif success:
+                success, message = self._apply_subtitles(params)
+                self._cleanup_and_finish(success, message)
             else:
                 self._cleanup_and_finish(success, message)
 
@@ -165,16 +182,70 @@ class ProcessingService(QObject):
                 link=params['file_path'],
                 input_folder=self.config_manager.get("input_dir"),
                 name=params['name'],
+                mode=params.get('yt_mode', 'audio'),
             )
             success, result = self.yt_manager.run(progress_callback=self.progress_signal.emit)
+            if success and params.get('yt_mode') == 'video':
+                self._video_source = result
             return result if success else None
         else:
             p = params['file_path']
             if not os.path.exists(p):
                 self.log_signal.emit(f"File non trovato: {p}")
                 return None
+            if input_type == "video":
+                self._video_source = p
             self.progress_signal.emit(0)
             return p
+
+    def _apply_subtitles(self, params: dict):
+        subs_mode = params.get("subs_mode", "none")
+        if subs_mode == "none" or not self._video_source:
+            return True, "Trascrizione completata con successo."
+
+        srt_path = os.path.join(params['output_dir'], params['name'] + ".srt")
+        if not os.path.exists(srt_path):
+            self.log_signal.emit("[!] Sottotitoli saltati: file SRT non trovato.")
+            return True, "Trascrizione completata (sottotitoli non integrati)."
+
+        self.stage_changed_signal.emit("Integrazione sottotitoli...")
+        self.log_signal.emit(f"Video sorgente: {self._video_source}")
+        self.progress_signal.emit(0)
+        total_duration = get_audio_duration(self._video_source) or 0
+
+        if subs_mode == "soft":
+            ext = os.path.splitext(self._video_source)[1].lower() or ".mp4"
+            output_path = self._output_prefix + "_subs" + ext
+            ok = embed_subtitles(
+                self._video_source, srt_path, output_path,
+                total_duration=total_duration,
+                progress_callback=self.progress_signal.emit,
+                is_cancelled_cb=self._check_cancelled,
+                process_registry=self._ffmpeg_processes
+            )
+            label = "traccia soft"
+        else:
+            output_path = self._output_prefix + "_burned.mp4"
+            ok = burn_subtitles(
+                self._video_source, srt_path, output_path,
+                total_duration=total_duration,
+                progress_callback=self.progress_signal.emit,
+                is_cancelled_cb=self._check_cancelled,
+                process_registry=self._ffmpeg_processes
+            )
+            label = "sottotitoli incisi"
+
+        if not ok:
+            if os.path.exists(output_path):
+                try:
+                    os.remove(output_path)
+                except Exception:
+                    logger.debug("Failed to remove partial subtitle output: %s", output_path)
+            return False, f"Errore nell'integrazione dei sottotitoli ({label})."
+
+        self._generated_files.append(output_path)
+        self.log_signal.emit(f"Video con {label}: {output_path}")
+        return True, f"Trascrizione completata. Video con {label}: {output_path}"
 
     def _cleanup_and_finish(self, success: bool, message: str):
         if self._stop_event.is_set():
@@ -220,3 +291,11 @@ class ProcessingService(QObject):
                     logger.warning("Errore nello stop di yt-dlp: %s", e)
 
             self.whisper_manager.stop_process()
+
+            for proc in list(self._ffmpeg_processes):
+                if proc.poll() is None:
+                    proc.terminate()
+                    try:
+                        proc.wait(3)
+                    except Exception:
+                        proc.kill()
