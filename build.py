@@ -41,6 +41,32 @@ IS_LINUX = not (IS_WINDOWS or IS_MACOS)
 WHISPER_CLI = "whisper-cli.exe" if IS_WINDOWS else "whisper-cli"
 SEP = ";" if IS_WINDOWS else ":"
 
+# Lib ABI di sistema che PyInstaller copia nel bundle dal runner (ubuntu-22.04,
+# GLIBCXX 3.4.30). Se incluse ombreggiano quelle di sistema tramite
+# LD_LIBRARY_PATH e rompono il dlopen dello stack driver Vulkan/Mesa su distro
+# piu' nuove (es. libSPIRV-Tools richiede GLIBCXX_3.4.32) -> "no GPU found" con
+# fallback CPU. Il sistema dell'utente ha sempre una versione >= a quella del
+# runner, quindi la rimozione e' sicura anche sul baseline ubuntu-22.04.
+_LINUX_BUNDLE_LIBS_TO_STRIP = (
+    "libstdc++.so.6",
+    "libgcc_s.so.1",
+    "libgomp.so.1",
+)
+
+
+def strip_bundle_system_libs(bundle_dir):
+    if not IS_LINUX:
+        return
+    removed = []
+    for name in _LINUX_BUNDLE_LIBS_TO_STRIP:
+        path = os.path.join(bundle_dir, name)
+        if os.path.isfile(path):
+            os.remove(path)
+            removed.append(name)
+    if removed:
+        log(f"Rimossi dal bundle (lib ABI di sistema, evitano lo shadowing che "
+            f"rompe il driver Vulkan): {', '.join(removed)}")
+
 
 def log(msg):
     print(f"[build.py] {msg}")
@@ -219,6 +245,7 @@ def build_app(args):
         os.path.join(ROOT, "main.py"),
     ]
     run(cmd)
+    strip_bundle_system_libs(os.path.join(DIST_DIR, APP_NAME, "_internal"))
     log(f"App buildata in {os.path.join(DIST_DIR, APP_NAME)}")
 
 
